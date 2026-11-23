@@ -1,0 +1,104 @@
+"""Command line: python -m tripfinder <command>.
+
+  select              pick launch destinations from flight coverage
+  refresh [what]      refresh reference | flights | hotels | all
+  search ...          ranked packages for a budget
+  costs               what keeping the data fresh costs (from the api_calls log)
+  serve               local web page on http://127.0.0.1:8000
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import time
+
+from . import jobs
+from .config import load_settings
+from .db import connect
+from .engine import TripRequest
+from .money import Money
+from .search import load_notes, search, to_dict
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(prog="tripfinder")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("select")
+    r = sub.add_parser("refresh")
+    r.add_argument("what", choices=["reference", "flights", "hotels", "all"], default="all", nargs="?")
+    r.add_argument("--only", help="comma-separated destination codes (hotels only)")
+    s = sub.add_parser("search")
+    s.add_argument("--budget", type=float, required=True, help="total trip budget in CAD")
+    s.add_argument("--adults", type=int, default=2)
+    s.add_argument("--children", type=int, default=0)
+    s.add_argument("--month", help="YYYY-MM")
+    s.add_argument("--nights", type=int)
+    s.add_argument("--tier", default="mid", choices=["budget", "mid", "upscale"])
+    s.add_argument("--sort", default="cheapest", choices=["cheapest", "most_nights"])
+    s.add_argument("--limit", type=int, default=10)
+    s.add_argument("--json", action="store_true")
+    sub.add_parser("costs")
+    sv = sub.add_parser("serve")
+    sv.add_argument("--port", type=int, default=8000)
+    args = ap.parse_args(argv)
+
+    settings = load_settings()
+    conn = connect(settings.db_path)
+
+    if args.cmd == "select":
+        chosen = jobs.select_destinations(conn, settings)
+        print(f"{len(chosen)} destinations: {' '.join(chosen)}")
+    elif args.cmd == "refresh":
+        steps = ["reference", "flights", "hotels"] if args.what == "all" else [args.what]
+        for step in steps:
+            t = time.monotonic()
+            if step == "hotels" and args.only:
+                result = jobs.refresh_hotels(conn, settings, only=args.only.split(","))
+            else:
+                result = getattr(jobs, f"refresh_{step}")(conn, settings)
+            print(f"{step}: {result} in {time.monotonic() - t:.0f}s")
+    elif args.cmd == "search":
+        req = TripRequest(Money.of(args.budget), args.adults, args.children, args.month, args.nights, args.tier, args.sort)
+        results = search(conn, req)[: args.limit]
+        notes = load_notes(settings.seed_dir)
+        rows = [to_dict(p, req, conn, settings, notes) for p in results]
+        if args.json:
+            print(json.dumps(rows, indent=2))
+        else:
+            print_results(rows, req)
+    elif args.cmd == "costs":
+        from .costs import report
+
+        print(report(conn, settings))
+    elif args.cmd == "serve":
+        import uvicorn
+
+        from .web import create_app
+
+        uvicorn.run(create_app(settings), host="127.0.0.1", port=args.port)
+    return 0
+
+
+def print_results(rows: list[dict], req: TripRequest) -> None:
+    if not rows:
+        print("No destinations fit this budget.")
+        return
+    print(f"Budget {req.budget} for {req.adults} adult(s), {req.children} child(ren), {req.tier} tier\n")
+    for i, r in enumerate(rows, 1):
+        t = r["total"]
+        flag = "" if r["fit"] == "within" else "  [stretch: only fits at the low end]"
+        print(f"{i:>2}. {r['name']} ({r['code']}, {r['country']})  {r['nights']} nights, {r['dates']['depart']} to {r['dates']['return']}{flag}")
+        print(f"    total {r['currency']} {t['expected']:,.0f}  (range {t['low']:,.0f} - {t['high']:,.0f}), per person {r['per_person']['expected']:,.0f}")
+        for c in r["components"]:
+            print(f"      {c['name']:<8} {c['expected']:>8,.0f}  [{c['confidence']}]  {c['detail']}")
+        if r["advisory"] and r["advisory"]["level"]:
+            print(f"      advisory: {r['advisory']['text']}")
+        for n in r["know_before"]:
+            print(f"      know before you go ({n['category']}): {n['summary']}")
+        print()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

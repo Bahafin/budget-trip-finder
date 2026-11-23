@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tripfinder",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "--project", "backend", "python", "-m", "tripfinder", "serve", "--port", "8000"],
+      "port": 8000
+    }
+  ]
+}
