@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Prototype: whole-trip packages from Toronto for a total budget.">
+<title>Budget Trip Finder</title>
+<style>
+  :root {
+    --bg: #f7f6f3; --card: #ffffff; --ink: #1d1d1b; --muted: #6b6a66; --line: #e3e1dc;
+    --accent: #0f6e5c; --on-accent: #ffffff; --flights: #3d6fb6; --lodging: #c07a2c; --daily: #7a8f3a;
+    --warn-bg: #fff4dc; --warn-ink: #7a5200; --stretch: #a15c00; --proto-bg: #e8f1ee; --proto-ink: #0b4f42;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161615; --card: #201f1d; --ink: #ecebe7; --muted: #a09e98; --line: #34332f;
+      --accent: #4fc2a8; --on-accent: #0c1f1a; --flights: #78a1e0; --lodging: #e0a160; --daily: #a9bf68;
+      --warn-bg: #3a2f14; --warn-ink: #f2cf7a; --stretch: #f0a54a; --proto-bg: #16302a; --proto-ink: #9fe0cf;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 20px 16px 48px; }
+  .proto { background: var(--proto-bg); color: var(--proto-ink); border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-bottom: 16px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  form { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; background: var(--card);
+         border: 1px solid var(--line); border-radius: 10px; padding: 14px; align-items: end; }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  input, select, button { font: inherit; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); min-width: 0; }
+  button { background: var(--accent); color: var(--on-accent); border: none; font-weight: 600; cursor: pointer; }
+  #status { color: var(--muted); margin: 16px 2px 8px; font-size: 13px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+  .head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .name { font-size: 18px; font-weight: 650; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .total { text-align: right; }
+  .total b { font-size: 22px; }
+  .badge { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--stretch); color: var(--stretch); margin-left: 6px; vertical-align: 2px; }
+  .bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 12px 0 8px; background: var(--line); }
+  .rows { display: grid; grid-template-columns: auto auto 1fr; gap: 2px 12px; font-size: 13px; }
+  .rows .amt { text-align: right; font-variant-numeric: tabular-nums; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+  .conf { color: var(--muted); }
+  .note { background: var(--warn-bg); color: var(--warn-ink); border-radius: 6px; padding: 6px 10px; margin-top: 8px; font-size: 13px; }
+  .note a { color: inherit; }
+  .links { margin-top: 10px; font-size: 13px; display: flex; gap: 14px; flex-wrap: wrap; }
+  .links a { color: var(--accent); }
+  footer { color: var(--muted); font-size: 12px; margin-top: 24px; }
+  footer p { margin: 0 0 6px; }
+  @media (max-width: 560px) {
+    .total { text-align: left; }
+    .rows { grid-template-columns: auto auto; }
+    .rows .detail { grid-column: 1 / -1; color: var(--muted); margin-bottom: 4px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="proto">Prototype for testing. Prices are estimates from cached fares and sampled hotel rates, not quotes.</div>
+  <h1>Budget Trip Finder</h1>
+  <p class="sub">Tell us your total budget. We find whole trips from Toronto that fit: flights, hotel and daily spending, in CAD.</p>
+
+  <form id="f">
+    <label>Total budget (CAD)<input name="budget" type="number" min="100" step="50" value="3000" required></label>
+    <label>Adults<input name="adults" type="number" min="1" max="9" value="2"></label>
+    <label>Children<input name="children" type="number" min="0" max="9" value="0"></label>
+    <label>Month<select name="month"><option value="">Any</option></select></label>
+    <label>Nights<input name="nights" type="number" min="1" max="30" placeholder="Longest that fits"></label>
+    <label>Comfort<select name="tier"><option value="budget">Budget (up to 3★)</option><option value="mid" selected>Mid (4★)</option><option value="upscale">Upscale (5★)</option></select></label>
+    <label>Sort<select name="sort"><option value="cheapest">Cheapest</option><option value="most_nights">Most nights</option></select></label>
+    <button type="submit">Find trips</button>
+  </form>
+
+  <div id="status">Loading trip data…</div>
+  <div id="results"></div>
+
+  <footer>
+    <p id="fresh"></p>
+    <p>Confirm prices on the partner site before booking. Links may be affiliate links.</p>
+    <p>Daily costs are scaled with World Bank price levels (CC BY 4.0). Travel advice from the Government of Canada (travel.gc.ca); always check the official page before you go.</p>
+  </footer>
+</main>
+<script type="module">
+import { prepare, roomsNeeded, search } from "./engine.js";
+
+const f = document.getElementById("f");
+const out = document.getElementById("results");
+const status = document.getElementById("status");
+const fmt = (n) => Math.round(n).toLocaleString("en-CA");
+const colors = { flights: "var(--flights)", lodging: "var(--lodging)", daily: "var(--daily)" };
+const today = new Date().toISOString().slice(0, 10);
+
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) k === "class" ? (e.className = v) : e.setAttribute(k, v);
+  for (const k of kids) e.append(k instanceof Node ? k : document.createTextNode(k));
+  return e;
+}
+
+function hotelLink(p, req) {
+  const q = new URLSearchParams({
+    ss: p.dest.name, checkin: p.fare.depart, checkout: p.fare.ret,
+    group_adults: req.adults, group_children: req.children, no_rooms: roomsNeeded(req.adults, req.children),
+  });
+  return "https://www.booking.com/searchresults.html?" + q;
+}
+
+function card(p, req, data) {
+  const c = el("div", { class: "card" });
+  const travellers = req.adults + req.children;
+  const title = el("div", { class: "name" }, p.dest.name, el("span", { class: "meta" }, `  ${p.dest.country}`));
+  if (p.fit === "stretch") title.append(el("span", { class: "badge", title: "Fits only if prices land at the low end" }, "stretch"));
+  const left = el("div", {}, title, el("div", { class: "meta" }, `${p.nights} nights · ${p.fare.depart} → ${p.fare.ret}`));
+  const right = el("div", { class: "total" }, el("b", {}, `$${fmt(p.total.expected)}`),
+    el("div", { class: "meta" }, `range $${fmt(p.total.low)}–$${fmt(p.total.high)} · $${fmt(p.total.expected / travellers)} pp`));
+  c.append(el("div", { class: "head" }, left, right));
+
+  const bar = el("div", { class: "bar" });
+  const rows = el("div", { class: "rows" });
+  for (const comp of p.components) {
+    bar.append(el("span", { style: `flex:${comp.expected};background:${colors[comp.name]}` }));
+    rows.append(
+      el("span", {}, el("span", { class: "dot", style: `background:${colors[comp.name]}` }), comp.name),
+      el("span", { class: "amt" }, `$${fmt(comp.expected)}`),
+      el("span", { class: "detail" }, el("span", { class: "conf" }, `[${comp.confidence}] `), comp.detail),
+    );
+  }
+  c.append(bar, rows);
+
+  const adv = data.advisories[p.dest.country];
+  if (adv && adv.level > 0) {
+    c.append(el("div", { class: "note" }, "Travel advice: ", el("a", { href: adv.url, target: "_blank", rel: "noopener" }, adv.text)));
+  }
+  for (const n of data.notes[p.dest.country] || []) {
+    c.append(el("div", { class: "note" }, `Know before you go (${n.category}): ${n.summary} `,
+      el("a", { href: n.source_url, target: "_blank", rel: "noopener" }, "Source")));
+  }
+  const links = el("div", { class: "links" });
+  if (p.fare.link) links.append(el("a", { href: p.fare.link, target: "_blank", rel: "noopener sponsored" }, "Check flights →"));
+  links.append(el("a", { href: hotelLink(p, req), target: "_blank", rel: "noopener" }, "Check hotels →"));
+  c.append(links);
+  return c;
+}
+
+const data = await (await fetch("./data.json", { cache: "no-cache" })).json();
+const dests = prepare(data, today);
+const months = [...new Set(dests.flatMap((d) => d.fares.map((f) => f.month)))].sort();
+for (const m of months) f.elements.month.append(el("option", { value: m }, m));
+document.getElementById("fresh").textContent =
+  `Trip data updated ${data.generatedAt.slice(0, 10)} · ${dests.length} destinations from Toronto.`;
+
+function run(e) {
+  if (e) e.preventDefault();
+  const fd = new FormData(f);
+  const num = (k) => (fd.get(k) === "" ? null : Number(fd.get(k)));
+  const req = {
+    budget: num("budget"), adults: num("adults") ?? 1, children: num("children") ?? 0,
+    month: fd.get("month") || null, nights: num("nights"), tier: fd.get("tier"), sort: fd.get("sort"),
+  };
+  const t = performance.now();
+  let results;
+  try {
+    results = search(dests, req, today, data.constants).slice(0, 15);
+  } catch (err) {
+    status.textContent = err.message;
+    return;
+  }
+  out.replaceChildren(...results.map((p) => card(p, req, data)));
+  const within = results.filter((p) => p.fit === "within").length;
+  status.textContent = results.length
+    ? `${within} trips fit, ${results.length - within} stretch · ${Math.round(performance.now() - t)} ms`
+    : "Nothing fits this budget. Try fewer nights, a lower comfort level, or a bigger budget.";
+}
+f.addEventListener("submit", run);
+run();
+</script>
+</body>
+</html>

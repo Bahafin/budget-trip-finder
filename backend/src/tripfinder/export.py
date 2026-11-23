@@ -1,0 +1,128 @@
+"""Export a static data snapshot for the browser version (GitHub Pages).
+
+Only derived data goes out: per-destination fares, lodging bands (percentiles, never per-hotel prices),
+price levels relative to Canada, advisories and our own notes. No keys, no raw hotel rows.
+"""
+
+from __future__ import annotations
+
+import json
+import sqlite3
+from datetime import UTC, date, datetime
+from pathlib import Path
+
+from .config import Settings
+from .engine import (
+    CHILD_DAILY_SHARE,
+    DAILY_BASE_CAD,
+    NIGHTLY_BASE_CAD,
+    NIGHTS_TOLERANCE,
+)
+from .search import load_destinations, load_notes
+
+
+def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = None) -> dict:
+    today = today or date.today()
+    dests = load_destinations(conn, today)
+    countries = {d.country_code for d in dests}
+    advisories = {
+        r["country_code"]: {"level": r["level"], "text": r["text"], "url": r["url"]}
+        for r in conn.execute("SELECT * FROM advisories")
+        if r["country_code"] in countries
+    }
+    notes = {c: v for c, v in load_notes(s.seed_dir).items() if c in countries}
+    marker = s.travelpayouts_marker
+    out_dests = []
+    for d in dests:
+        out_dests.append(
+            {
+                "code": d.code,
+                "name": d.name,
+                "country": d.country_code,
+                "priceLevel": float(d.price_level) if d.price_level is not None else None,
+                "fares": [
+                    {
+                        "depart": f.depart.isoformat(),
+                        "ret": f.ret.isoformat(),
+                        "price": float(f.price.amount),
+                        "foundOn": f.found_on.isoformat(),
+                        "link": f"https://www.aviasales.com{f.link}{'&' if '?' in f.link else '?'}marker={marker}" if f.link else "",
+                    }
+                    for f in sorted(d.fares, key=lambda f: (f.depart, f.price.amount))
+                ],
+                "bands": [
+                    {
+                        "month": m,
+                        "tier": t,
+                        "low": float(b.nightly.low.amount),
+                        "mid": float(b.nightly.expected.amount),
+                        "high": float(b.nightly.high.amount),
+                        "n": b.sample_size,
+                        "asOf": b.as_of.isoformat(),
+                        "source": b.source,
+                    }
+                    for (m, t), b in sorted(d.bands.items())
+                ],
+            }
+        )
+    return {
+        "generatedAt": datetime.now(UTC).isoformat(timespec="seconds"),
+        "today": today.isoformat(),
+        "currency": s.currency,
+        "origin": s.origin,
+        "constants": {
+            "dailyBase": DAILY_BASE_CAD,
+            "nightlyBase": NIGHTLY_BASE_CAD,
+            "childDailyShare": float(CHILD_DAILY_SHARE),
+            "nightsTolerance": NIGHTS_TOLERANCE,
+        },
+        "destinations": out_dests,
+        "advisories": advisories,
+        "notes": notes,
+    }
+
+
+def write_snapshot(conn: sqlite3.Connection, s: Settings, out: Path) -> dict[str, int]:
+    snap = build_snapshot(conn, s)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    text = json.dumps(snap, separators=(",", ":"), ensure_ascii=False)
+    out.write_text(text, encoding="utf8")
+    return {"destinations": len(snap["destinations"]), "bytes": len(text.encode())}
+
+
+# Requests the browser engine must price exactly like the Python engine (checked by site/tests/parity.test.mjs).
+GOLDEN_REQUESTS = [
+    {"budget": 3000, "adults": 2},
+    {"budget": 3000, "adults": 2, "month": None, "nights": 7},
+    {"budget": 6000, "adults": 2, "children": 2, "nights": 7, "tier": "budget"},
+    {"budget": 1500, "adults": 1, "tier": "budget", "sort": "most_nights"},
+    {"budget": 9000, "adults": 3, "children": 1, "tier": "upscale"},
+    {"budget": 2500, "adults": 2, "nights": 5},
+]
+
+
+def write_golden(conn: sqlite3.Connection, s: Settings, out: Path) -> int:
+    from .engine import TripRequest
+    from .money import Money
+    from .search import search
+
+    snap_today = date.today()
+    cases = []
+    for r in GOLDEN_REQUESTS:
+        req = TripRequest(
+            Money.of(r["budget"]), r["adults"], r.get("children", 0), r.get("month"), r.get("nights"),
+            r.get("tier", "mid"), r.get("sort", "cheapest"),
+        )
+        results = search(conn, req, snap_today)
+        cases.append(
+            {
+                "request": r,
+                "results": [
+                    {"code": p.destination.code, "nights": p.nights, "month": p.month, "fit": p.fit, **p.total.as_dict()}
+                    for p in results
+                ],
+            }
+        )
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({"today": snap_today.isoformat(), "cases": cases}, indent=1), encoding="utf8")
+    return len(cases)

@@ -132,7 +132,7 @@ def flight_component(fares: list[Fare], req: TripRequest, nights: int, month: st
         return None
     matching = [f for f in in_month if abs(f.nights - nights) <= NIGHTS_TOLERANCE]
     exact = bool(matching)
-    pool = sorted(matching or in_month, key=lambda f: f.price.amount)
+    pool = sorted(matching or in_month, key=lambda f: (f.price.amount, f.depart, f.ret))  # deterministic ties
     prices = [f.price for f in pool]
     best = pool[0]
     expected = Money(Decimal(str(statistics.median(p.amount for p in prices[:3]))), best.price.currency)

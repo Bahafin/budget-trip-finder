@@ -15,7 +15,7 @@ import sys
 import time
 
 from . import jobs
-from .config import load_settings
+from .config import ROOT, load_settings
 from .db import connect
 from .engine import TripRequest
 from .money import Money
@@ -42,6 +42,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("costs")
     sv = sub.add_parser("serve")
     sv.add_argument("--port", type=int, default=8000)
+    ex = sub.add_parser("export", help="write the static site data snapshot (and parity cases for the JS engine)")
+    ex.add_argument("--out", default=str(ROOT / "site" / "data.json"))
+    ex.add_argument("--golden", default=str(ROOT / "site" / "tests" / "golden.json"))
     args = ap.parse_args(argv)
 
     settings = load_settings()
@@ -78,6 +81,13 @@ def main(argv: list[str] | None = None) -> int:
         from .web import create_app
 
         uvicorn.run(create_app(settings), host="127.0.0.1", port=args.port)
+    elif args.cmd == "export":
+        from pathlib import Path
+
+        from .export import write_golden, write_snapshot
+
+        print("snapshot:", write_snapshot(conn, settings, Path(args.out)))
+        print("golden cases:", write_golden(conn, settings, Path(args.golden)))
     return 0
 
 

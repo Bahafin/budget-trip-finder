@@ -6,6 +6,12 @@
       "runtimeExecutable": "uv",
       "runtimeArgs": ["run", "--project", "backend", "python", "-m", "tripfinder", "serve", "--port", "8000"],
       "port": 8000
+    },
+    {
+      "name": "site",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8001", "--directory", "site"],
+      "port": 8001
     }
   ]
 }
