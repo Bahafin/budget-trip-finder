@@ -7,7 +7,7 @@ Enter a total trip budget and get whole trips from Toronto that fit: flights, ho
 ## How it works
 
 - `backend/`: Python data jobs and the pricing engine. The jobs refresh cached fares (Aviasales), sample hotel prices (LiteAPI), and load price levels (World Bank) and Canadian travel advisories. See [backend/README.md](backend/README.md).
-- `site/`: the static test site served by GitHub Pages. `python -m tripfinder export` writes `site/data.json`, and `site/engine.js` prices trips in the browser. A parity test (`node --test site/tests/`) checks it against the Python engine.
+- `site/`: the static test site served by GitHub Pages. `python -m tripfinder export` writes `site/data.json`, and `site/engine.js` prices trips in the browser. A parity test (`node --test site/tests/parity.test.mjs`) checks it against the Python engine.
 - `docs/`: spec, plan, data coverage report and [proof-of-concept report](docs/poc-report.md).
 
 ## Update the test site's data

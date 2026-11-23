@@ -1,4 +1,4 @@
-// node --test site/tests: the browser engine must rank and price like the Python engine.
+// node --test site/tests/parity.test.mjs: the browser engine must rank and price like the Python engine.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
