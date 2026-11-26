@@ -21,6 +21,29 @@ Status marks: ✅ confirmed from a primary source, ⚠️ third-party or not yet
 
 **What we haven't found:** any Google tool that **models a total trip budget** (flights + hotel + daily spend for N people) and filters destinations by it. A "total trip under $X" option would be a small step from Explore plus Hotels. **That's the threat to watch** (§5).
 
+## 1b. Chatbots (ChatGPT, Gemini, Perplexity): the other substitute
+
+Added 2026-11-26 from the owner's ChatGPT test ([inbox note](inbox/2026-11-26-chatgpt-2500-for-two.md)).
+
+**ChatGPT with web search** answers our exact question as a whole trip, in CAD:
+- five places, each with a "best for" label
+- a cost table per place: flights, lodging, spending
+- clarifying questions about group size and beach vs city.
+
+That's closer to our product than any Google tool so far. Where it falls short:
+
+| Weakness seen | Our answer |
+|---|---|
+| Guessed the group size wrong (1 adult) before asking | Group size is a required field; chat input would ask first (feature-ideas #2) |
+| Numbers don't add up (its own source says $590 per person; its table shows $700 for two) | Every total is the sum of its parts, with a test that checks it |
+| Sources are deal blogs and snippets, undated | Dated cache and samples, an age on every price |
+| Ranges in the first answer, single numbers after the follow-up | Always low / expected / high, with confidence labels |
+| No advisories, entry rules or know-before-you-go | Government of Canada advisory on every result |
+| No links to check or book | Partner links pre-filled with dates and group size |
+| Spending money roughly half our estimate | **Unknown who is right.** Gate A 2.3 decides |
+
+Where it beats us: places grouped by theme, any destination (Mexico City; trips without a flight like Montreal by train), conversation, and an instant personal pick ("I'd choose Mexico City").
+
 ## 2. Side by side on the core question
 
 | What the user needs | Google (best tool for it) | Far Enough today | Who wins |
@@ -30,7 +53,8 @@ Status marks: ✅ confirmed from a primary source, ⚠️ third-party or not yet
 | Group maths (rooms, kids, per-person split) | Passenger count for flights; hotel guests separately | Rooms and travellers in one total, per-person split | **Us** |
 | Honest uncertainty | Price insights for flights (good / typical / high) | Low / expected / high range on the total, confidence label per part | **Us** (if Gate A holds) |
 | Price freshness and accuracy | **Live** fares and hotel prices | Cached fares (up to about 7 days), sampled hotel bands, estimated daily spend. Spot check within -8% to +4% on 3 trips; Gate A not done | **Google** |
-| Destination coverage | Every route from YYZ | 25 destinations | **Google** |
+| Destination coverage | Every route from YYZ | 25 destinations, flights only (no train, bus or drive trips; no Mexico City) | **Google** (and chatbots) |
+| Choosing between results | Map and price | Numbers only, no "best for" | **Chatbots** (themes); feature-ideas #8 |
 | Dates | Flexible dates, calendar, "any week in the next 6 months", months ahead | Month optional; fares only about 3 months ahead | **Google** |
 | Natural-language input | Flight Deals and AI Mode take a sentence | Form only (LLM parsing planned after Gate A) | **Google** |
 | CAD and Canadian context | CAD prices; no advisories | CAD, Government of Canada advisory level on each result, level 2+ dropped | **Us** |
@@ -97,4 +121,4 @@ For each answer, note:
 
 | Date | Tool | Question | Result in one line | Note |
 |---|---|---|---|---|
-| — | — | — | No tests yet | — |
+| 2026-11-26 | ChatGPT (web search, logged in) | Like Q1: $2,500, 2 adults, next 2 months, Toronto or Hamilton | Mexico City, Cancún, Montreal, New York, Orlando, totals $1,700-2,300 for two, grouped by theme. First guessed 1 adult; numbers inconsistent; no advisories | [inbox](inbox/2026-11-26-chatgpt-2500-for-two.md) |
