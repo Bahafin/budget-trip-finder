@@ -1,135 +1,129 @@
 # Budget Trip Finder: Implementation Plan
 
-Plan date: 2026-11-21. The spec is [docs/PHASE1_SPEC.md](docs/PHASE1_SPEC.md); this file says what gets built, in what order, and what has to be true before each step.
+Re-planned 2026-11-25 (first version 2026-11-21). The spec is [docs/PHASE1_SPEC.md](docs/PHASE1_SPEC.md). This file says what gets built, in what order, and what has to be true before each step. The owner's own tasks are in [TODO.md](TODO.md).
 
-**Approach:** the work is ordered around the spec's go/no-go gates, so nothing expensive gets built before the data is proven. The pricing engine and the accuracy test (Gate A) come before any real UI. A landing page (Gate C) runs alongside them to test demand. Search UI, LLM and hardening come only after Gate A passes.
+**Approach (unchanged):** work is ordered around the go/no-go gates, so nothing expensive is built before the data is proven.
+- **A:** accuracy test.
+- **B:** TICO's answer.
+- **C:** demand test.
+- **D:** revenue per 1,000 visitors.
 
-## Defaults used where the owner hasn't decided yet
+What changed is that the proof of concept is done. The next job is to make it good enough for testers and for Gate A, so the conversations with your employer and TICO rest on evidence.
 
-Each of these is a default the plan uses until the owner answers; all are listed in spec section 12.
+## Where we are (2026-11-25)
 
-| Decision | Default in this plan | Why |
+| Done | Evidence |
+|---|---|
+| Spec rebuilt; wedge decided (Canadian departures, CAD, Toronto first) | docs/PHASE1_SPEC.md |
+| Data check: flights from Toronto (148 destinations), hotels via LiteAPI, price levels, advisories | docs/m0-coverage-report.md |
+| Proof of concept: pricing engine (30 tests), refresh jobs, cost meter, CLI, local web page | docs/poc-report.md |
+| Data cost measured: about $0 a month for 25 destinations (worst case under EUR 2) | docs/poc-report.md |
+| Public test site with a browser copy of the engine, checked against the Python engine on every push | https://bahafin.github.io/budget-trip-finder/ |
+| Spot check against Google Flights and Booking.com: whole-trip estimates within -8% to +4% after the flight fix | docs/validation-2026-11-24.md |
+| API and partner research: what Travelpayouts and LiteAPI offer, which affiliate programs are open | docs/api-coverage-check.md, docs/affiliate-programs-check.md |
+| Affiliate programs joined: Aviasales, Klook, KKday (Travelpayouts) | TODO.md |
+
+**Ruled out:**
+- Hotellook (shut down).
+- Amadeus (decommissioned).
+- Duffel for Phase 1 (its terms ban metasearch use; Stays needs sales).
+- Live Aviasales and Kiwi search (need 50,000+ monthly users).
+- Booking.com and other big hotel programs inside Travelpayouts (need traffic, for now).
+
+## Defaults the plan uses
+
+| Decision | Default | Why |
 |---|---|---|
-| Wedge | **Decided 2026-11-21:** Canadian departures: CAD prices, CA flight-data market, Canadian-passport entry rules first | Owner is in Ontario; it fixes currency, market and visa scope in one move |
-| Origin region | Toronto (YYZ, YTZ), with YUL and YVR added in M2 if coverage holds | One origin region keeps Gate A tractable |
-| Launch destinations | 25, picked in M0 by flight-data coverage from YYZ | Destinations with no cached flights can't be priced |
-| Lodging | **Curated bands with seasons**, refreshed by a scheduled LiteAPI job if its terms allow (Hotellook is gone; see docs/m0-coverage-report.md) | Bands keep user searches free of live hotel calls; LiteAPI makes them less manual |
-| Data refresh | GitHub Actions schedules | Free, zero setup; jobs stay Prefect-ready |
-| Affiliate accounts | Travelpayouts (Aviasales + Hotellook), Viator Basic | Self-serve, free |
-| LLM | Deferred to M5 | Not needed to pass any gate |
+| Wedge | **Decided:** Canadian departures | Fixes currency, market and visa scope |
+| Origin | Toronto (YYZ, YTZ, Billy Bishop). Montreal and Vancouver after Gate A | Keeps Gate A tractable |
+| Destinations | 25, chosen by flight coverage; countries at advisory level 2+ skipped | Can't price what has no fares |
+| Flights | Aviasales cached fares; estimate = trip's own fare x 1.10 | Validated 2026-11-25 |
+| Hotels | LiteAPI samples into bands, plus the city price index for seasonality | Live data without per-search calls |
+| Daily spend | Canadian baseline x World Bank price level | Weakest number; Gate A checks it |
+| Hotel link | Klook now, Expedia once approved, Booking.com later | Booking.com needs traffic |
+| Activities | Viator (direct), Klook and KKday for Asia | Viator has no traffic minimum |
+| Hosting | GitHub Pages static site + GitHub Actions refresh | Free; fine until a real backend is needed |
+| LLM | After Gate A | Not needed to pass any gate |
 
-## Owner actions (not code)
-
-These are on the owner, and some take weeks, so they start now.
-
-| Action | Needed by | Blocks |
-|---|---|---|
-| ~~Open Travelpayouts account, get API token~~ Done 2026-11-22; token in `.env`. Project "Bahafin" under review | — | — |
-| Join Aviasales, Booking.com, Expedia, Viator once the Project is approved | M3 | Outbound links |
-| Ask Travelpayouts support which hotel programs offer the Data API "on request" | Now | Live hotel prices |
-| Contact Duffel sales: (1) enable Stays, (2) confirm in writing that showing prices with no booking through Duffel is allowed under Services Agreement 2.5(d) "metasearch", (3) CAD balance currency, (4) eligibility for a Canadian sole proprietor | Now | Live hotel prices via Duffel; Phase 2 booking backend |
-| Read LiteAPI Terms of Service (search-only use, showing derived ranges); request Experiences access only if Phase 2 gets close | Before the M1 adapter | LiteAPI band refresh |
-| Write know-before-you-go notes for the 25 launch destinations (drones, medication, cash limits, imports) from travel.gc.ca | With lodging bands | Destination page |
-| Open Viator Partner (Basic Access) account | M4 | Activities |
-| Pick brand name and register domain | M1 | Landing page (Gate C) |
-| Contact TICO in writing about referral-only operation | Before public launch | Gate B |
-| Set Gate C thresholds (signups, click-through) | Before landing page goes live | Gate C |
-| Check employer outside-business-activity policy | Before public launch | Launch |
-
-## Phases
+## Stages
 
 ```
-M0 Data check ──► M1 Skeleton + engine ──► Gate A (accuracy) ──► M3 Search API ──► M4 Web app ──► M5 LLM ──► M6 Hardening ──► Gate B ──► Launch ──► Gate D
-                         │
-                         └──► Landing page (Gate C, runs 4-6 weeks in parallel)
+Stage 1 Tester-ready ──► Stage 2 Gate A ──► (owner: employer + TICO, Gate B) ──► Stage 4 Real product ──► Launch ──► Gate D
+        └──► Stage 3 Landing page and demand test (Gate C), in parallel once there is a name
 ```
 
-### M0: Data verification (spike, throwaway scripts)
+### Stage 1: Tester-ready site (about a week)
 
-Goal: prove the free data sources can price trips from Toronto before writing the real app.
+Goal: testers see fresh, accurate-looking trips, and every click can earn.
 
-- [x] Aviasales Data API from Toronto, CA market, CAD: 148 destinations over 5 months, cache median 3 days old (see docs/m0-coverage-report.md).
-- [x] US market comparison: almost identical.
-- [x] Hotellook data API: gone (404). Lodging moves to curated bands.
-- [ ] Load the visa dataset and check Canadian-passport rows for the candidates.
-- [ ] Pull the World Bank price level index for candidate countries.
-- [ ] Write `docs/m0-coverage-report.md`: per destination, which components have data. Pick the 25 launch destinations from it.
+- [x] **1.1 Daily automatic refresh** (built 2026-11-26; runs once the two key secrets are added).
+  - `.github/workflows/pages.yml` runs daily at 04:17 Toronto time and on every push.
+  - It restores the database from the Actions cache and runs `refresh auto` (flights when older than 20 h, hotels 6 days, reference data 25 days, destination list 30 days; an empty database rebuilds itself).
+  - It then exports the snapshot, runs both test suites, deploys, and writes a refresh and data-cost summary on each run.
+  - Without the secrets it deploys the committed snapshot.
+- [ ] **1.2 Affiliate links.**
+  - Generate Aviasales, Klook and KKday links with the Travelpayouts partner links API at export time, tagged per destination (`sub_id`). Project ID 605382.
+  - "Check hotels" goes to Expedia once its link format is known (TODO.md); Klook until then.
+- [ ] **1.3 Accuracy fixes found in validation:**
+  - (a) add hotel fees LiteAPI marks as paid at the property
+  - (b) seasonality from LiteAPI's city price index, so holiday dates price higher
+  - (c) richer flight coverage with `grouped_prices` and trip-length windows
+  - (d) minimum trip length of 3-4 nights by default, so results look like real holidays
+- [ ] **1.4 Tester feedback.** A "Was this price right?" link on each result, opening a short form with the trip pre-filled (owner provides the form). This doubles as Gate A data.
+- [ ] **1.5 Small fixes.**
+  - Airline names instead of codes.
+  - A visible "prices updated" date.
+  - Clear wording that prices are estimates and booking happens on the partner's site.
 
-Done when: the report exists and names 25 destinations where flights and lodging both have data (or a curated band is planned).
+Done when the live site refreshes itself daily, links are tracked, and the 3-trip spot check still holds.
 
-### M1: Skeleton and pricing engine
+### Stage 2: Gate A, the 50-trip accuracy test (about 2 weeks, mostly elapsed time)
 
-- [ ] Monorepo layout:
-  ```
-  backend/    FastAPI app (structure from spec 5), pyproject, Alembic
-  web/        Next.js app (empty until M4, landing page lives here first)
-  data/seed/  destinations.csv, lodging_bands.csv, daily_costs.csv (curated, versioned)
-  scripts/    M0 spike scripts, Gate A harness
-  docs/
-  ```
-- [ ] Toolchain: `uv` with Python 3.12 pinned (the machine has 3.15; libraries lag new Python releases), ruff, pytest, mypy. Node 22 LTS for `web/`.
-- [ ] Database: Postgres. No Docker or local Postgres on this machine, so use a free hosted Postgres for dev, or install Postgres locally. Tests use a throwaway schema.
-- [ ] Domain layer, pure and fully unit-tested: cost model with low/expected/high ranges, room allocation, currency handling (`Money` type that refuses mixed-currency arithmetic), ranking.
-- [ ] Provider interfaces + fakes for flights, lodging, daily costs, visa, FX. Normalized record: `value, currency, fetched_at, source, confidence`.
-- [ ] Real adapters for Aviasales and LiteAPI hotel rates (band refresh job), with contract tests on recorded fixtures.
-- [ ] `know_before_you_go` seed table (destination, category: drone/medication/cash/imports/laws, summary in our words, source URL, reviewed_at), plus a job that flags rows when the Global Affairs feed's `date-published` changes.
-- [ ] Refresh jobs as plain functions + a CLI entry point; GitHub Actions schedule calls them.
-- [ ] CI: lint, type check, tests on every push.
+Needs the LiteAPI **production** key, so hotel prices are real rather than sandbox.
 
-Done when: `python -m app.jobs refresh-all` fills the DB for the 25 destinations, and a CLI command prints ranked packages for a budget.
+- [ ] **2.1 Test set.** A script picks 50 trips: a mix of destinations, 1-4 travellers, 3-10 nights, dates 1-4 months out, including a few holiday dates.
+- [ ] **2.2 Real prices.** For each trip, record the real flight price (Google Flights) and hotel price (Booking.com or Expedia, same tier):
+  - I do this through the browser where sites allow it.
+  - Tester feedback fills in the rest.
+- [ ] **2.3 Daily spend check.** Compare our daily figures with published per-city daily budgets, then adjust the baseline.
+- [ ] **2.4 Report.** Median and 90th-percentile error per component and in total.
+  - Pass: median total error within about 20-25%.
+  - Fail: fix the weakest component and re-run.
 
-### Gate A: Accuracy test
+Done when the Gate A report exists. **This is the evidence for the employer and TICO conversations.**
 
-- [ ] Harness in `scripts/gate_a/`: generate 50 packages (mix of destinations, 1-4 travellers, 3-10 nights, dates 1-4 months out).
-- [ ] For each, record the engine's expected total, then the real total found by hand on partner sites (flight + hotel of the same tier). This is manual work, about a day; the owner or a helper does it.
-- [ ] Report median and 90th-percentile error per component.
+### Stage 3: Landing page and demand test (Gate C, in parallel)
 
-Pass: median total error within ~20-25%. Fail: fix the weakest component (usually lodging or daily costs) and re-run before building further.
+- [ ] Brand name and domain (owner).
+- [ ] Landing page: the pitch, a few live example trips, email sign-up, affiliate disclosure. It also gives the Booking.com (CJ) and Skyscanner applications a real site to review.
+- [ ] Simple, privacy-friendly analytics: visits, sign-ups, clicks.
+- [ ] Run 4-6 weeks against thresholds set in advance (owner).
 
-### Landing page (parallel with M1 and Gate A)
+### Stage 4: Real product (after Gate A passes)
 
-- [ ] One page in `web/`: the pitch, 3-5 example packages generated by the engine (static, labelled estimates), email signup, affiliate disclosure.
-- [ ] Analytics: visits, signups, example-package clicks.
-- [ ] Host on a free static tier. Run 4-6 weeks against the Gate C thresholds.
+- [ ] Hosted backend: Postgres, search API, two-stage pipeline (cached discovery, then a live check of the top results via LiteAPI flights once production flights are activated).
+- [ ] Destination page: Viator activities (live, on open), know-before-you-go notes for all 25 destinations, entry requirements (replace the scraped visa data before scaling).
+- [ ] More origins (Montreal, Vancouver), flexible dates, price alerts.
+- [ ] Click logging and the Travelpayouts statistics API for Gate D.
+- [ ] LLM layer: free-text trip requests, "why this fits" blurbs. It never produces prices.
+- [ ] Hardening: monitoring, rate limits, legal copy, privacy policy.
 
-### M3: Search API (after Gate A passes)
+### Launch, then Gate D
 
-- [ ] `POST /v1/search`, `GET /v1/destinations/{id}/package`, `GET /v1/entry-requirements`, `GET /v1/out/...` as in spec 6.
-- [ ] Two-stage pipeline: discovery from cache, verification of top 10.
-- [ ] Flexible dates (window, month, none) from cached calendars; under 3 s for a one-month window.
-- [ ] Graceful degradation on provider outage.
-- [ ] Nationality never persisted or logged (test asserts it).
+- Gate B (TICO's answer in writing) before going public.
+- Gate D after 2-3 months: revenue per 1,000 visitors decides paid traffic and Phase 2.
 
-### M4: Web app
+### Phase 2 hooks (do not build now)
 
-- [ ] Input form with conditional fields (group, dates, region, optional nationality).
-- [ ] Results list with ranges, confidence labels, cache age, per-person split.
-- [ ] Destination detail: breakdown, live Viator activities, outbound links through `/v1/out`.
-- [ ] Referral-only copy, affiliate disclosure, visa disclaimer, privacy policy page, World Bank attribution.
-- [ ] Mobile-first.
-
-### M5: LLM layer
-
-- [ ] Eval set of 25 free-text queries with expected parsed inputs.
-- [ ] `LLMClient` interface; benchmark a hosted model and an open-weight one (e.g. Nemotron) on the eval set; pick by accuracy and cost.
-- [ ] Intent parsing + "why this fits" blurbs. Numbers in output are validated against pipeline output or dropped.
-
-### M6: Hardening
-
-- [ ] Rate limiting, cache TTL review, error monitoring, load test, legal copy review.
-
-### Launch and after
-
-- Gate B (TICO answer in writing) before going public.
-- Gate D: after 2-3 months, revenue per 1,000 visitors decides paid traffic and Phase 2.
-- Apply to hotel-chain, airline and GetYourGuide programs once the site is live.
+Selling trips through LiteAPI (hotels, flights, experiences), with an agent on top of its MCP server. Needs TICO registration and a trust account. Gated on Phase 1 traction.
 
 ## Running cost target
 
-Near zero until Gate D: free tiers for hosting, Postgres, CI and data sources. Paid items only when a gate justifies them (licensed visa data, Numbeo, paid LLM usage beyond testing).
-
-## First tasks for the coding agent
-
-1. `git init`, add `.gitignore` and `.env.example` (no real keys).
-2. Write the M0 scripts against the Travelpayouts token once the owner provides it in `.env`.
-3. In parallel, build the domain cost model and its tests (no external dependency).
+| Item | Now | Stage 2 | Stage 4 |
+|---|---|---|---|
+| Flights, reference data | $0 | $0 | $0 |
+| LiteAPI hotel searches | $0 | $0 (within ratio) | $0-2 |
+| LiteAPI city price index | n/a | about $2-5/month | about $2-5/month |
+| LiteAPI flight live check | n/a | n/a | EUR 0.005 per search beyond 1,500 per booking |
+| Hosting, CI | $0 (GitHub) | $0 | Free tier or about $5-10/month for a small server + Postgres |
+| Domain | n/a | about $15/year | about $15/year |

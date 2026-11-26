@@ -29,7 +29,7 @@ uv run python -m tripfinder refresh flights
 uv run python -m tripfinder refresh hotels
 ```
 
-`refresh all` runs reference, flights and hotels in one go. To re-sample only some destinations: `refresh hotels --only LIR,PUJ`.
+`refresh all` runs reference, flights and hotels in one go. `refresh auto` runs only what's due (flights after 20 h, hotels after 6 days, reference data after 25 days, destination list after 30 days) and rebuilds an empty database from scratch. It's what the daily GitHub workflow runs. Add `--force hotels` to run a step anyway. To re-sample only some destinations: `refresh hotels --only LIR,PUJ`.
 
 ## Use it
 

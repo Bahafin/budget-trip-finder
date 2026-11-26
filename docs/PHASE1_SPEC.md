@@ -7,6 +7,8 @@
 > drop it in `docs/` and it replaces this file.
 
 Handover document for a coding agent. Working title only; rename freely.
+
+**Status 2026-11-25:** a working proof of concept exists (`backend/`, live test site at https://bahafin.github.io/budget-trip-finder/). What it proved: [poc-report.md](poc-report.md), [validation-2026-11-24.md](validation-2026-11-24.md). API and partner research: [api-coverage-check.md](api-coverage-check.md), [affiliate-programs-check.md](affiliate-programs-check.md). The build order lives in [../PLAN.md](../PLAN.md). Sections below marked **[2026-11-2x]** reflect those findings.
 Spec date: 2026-11-20. Provider terms and APIs change. Check each provider's current docs before coding against it.
 
 ## 1. Product summary
@@ -67,18 +69,23 @@ activities_total = optional, user-selectable, default 0 or a small allowance
 
 Read each provider's current documentation first. Do not assume field names from this document.
 
+**[2026-11-25]** Full check of the Travelpayouts and LiteAPI docs: [api-coverage-check.md](api-coverage-check.md). Key points: outbound links must be made with the Travelpayouts partner links API; the live Aviasales and Kiwi search APIs need 50,000+ monthly users (not available); LiteAPI's city price index supplies daily hotel seasonality.
+
 | Component | Source | Access | Key constraints |
 |---|---|---|---|
-| Flights (discovery) | Travelpayouts Aviasales Data API | Free after Travelpayouts signup + Aviasales program | Prices come from users' recent searches, cached up to ~7 days. Not live. Always show cache age and link out to confirm. **[v2]** The cache is per market: a route only has data if users in that market searched it. The default market is Russian, so set the market explicitly and test Canada/US coverage in M0 |
-| Lodging **[M0, 2026-11-22]** | **Curated bands** (below) are the launch source | Manual | The Hotellook data API planned in v2 is gone (endpoints return 404; not in the catalog). No hotel program in the Travelpayouts catalog advertises a price API. Travelpayouts offers a Data API "on request" for some programs: ask which hotel programs qualify. Outbound hotel links go to catalog programs (Booking.com, Expedia, Trip.com, Agoda) |
-| Activities **[v2]** | Viator Partner API, Basic Access | Instant self-service, no cost | Search endpoints are for real-time, user-initiated searches only, and Basic Access can't use bulk ingestion. **No pre-loading:** activities appear only when a user opens a destination, never in ranking. Basic tier sends users to viator.com to book. Viator "unique content" (e.g. reviews) must not be indexable |
-| Daily costs **[v2]** | Curated per-destination daily budgets, scaled by the World Bank price level index (CC BY 4.0, attribute it) | Free | Numbeo's commercial API is a later upgrade (third-party report: roughly $260-1,250/month, unverified). Free Numbeo use is non-commercial only, so don't use it |
+| Flights (discovery) | Travelpayouts Aviasales Data API | Free after Travelpayouts signup + Aviasales program | Prices come from users' recent searches, cached up to ~7 days. Not live. Always show cache age and link out to confirm. **[v2]** The cache is per market: a route only has data if users in that market searched it. The default market is Russian, so set the market explicitly and test Canada/US coverage in M0. **[2026-11-25]** CA market confirmed (148 destinations from Toronto). Coverage per destination can be thin (1-3 fares a month), so add `v3/grouped_prices` with trip-length windows. Estimate rule after validation: cheapest cached fare for the trip's own dates x 1.10 (low x 0.95, high x 1.35). The live Aviasales and Kiwi search APIs need 50,000+ monthly users, so they are out. Live price check for top results later: LiteAPI flights (production activation) |
+| Lodging **[2026-11-25]** | **LiteAPI (Nuitee) hotel rates**, sampled by a weekly job into bands per destination, month and comfort tier (25th percentile / median / 75th percentile nightly price per room) | Free sandbox now; production key = card on file (owner action) | Hotellook is gone and Travelpayouts has no hotel price API (confirmed in its FAQ). One search per destination per month, mid-month check-in, 3 nights, 2 adults; `data/seed/hotel_areas.csv` fixes resort destinations whose hotels sit away from the city point. Spot check: medians within -12% to +8% of Booking.com. To add: fees LiteAPI marks as paid at the hotel, and seasonality from LiteAPI's **city price index** (`GET /v3.0/prices/city`, daily average a year ahead, US$0.02-0.05 per call, beta) to scale bands for the trip's actual dates. Fallback when no sample exists: Canadian average x price level, labelled `estimated`. Search-only use within LiteAPI's terms still to confirm |
+| Activities **[v2; 2026-11-25]** | Viator Partner API, Basic Access (join Viator **directly**: no traffic minimum, 8%, 30-day cookie). Klook and KKday through Travelpayouts for Asian destinations | Instant self-service, no cost | Search endpoints are for real-time, user-initiated searches only, and Basic Access can't use bulk ingestion. **No pre-loading:** activities appear only when a user opens a destination, never in ranking. Basic tier sends users to viator.com to book. Viator "unique content" (e.g. reviews) must not be indexable |
+| Daily costs **[v2; 2026-11-25]** | Canadian baseline per comfort tier (CAD 80 / 140 / 240 per adult per day; children 70%) scaled by the World Bank price level. The old price-level indicator is archived, so it is derived as PPP conversion factor (`PA.NUS.PRVT.PP`) / market FX rate (`PA.NUS.FCRF`). CC BY 4.0, attribute it. **Unvalidated and about 40% of a typical total**: Gate A must check it | Free | Numbeo's commercial API is a later upgrade (third-party report: roughly $260-1,250/month, unverified). Free Numbeo use is non-commercial only, so don't use it |
 | Visa / entry **[v2]** | MIT-licensed community passport/visa dataset | Free | **Stopgap.** It was scraped from passportindex.org, so rights to the underlying data are unclear for commercial use. Replace with licensed data (e.g. Sherpa) before scaling. Always show disclaimer; never present as authoritative |
-| Lodging prices, live **[2026-11-23, candidate]** | LiteAPI (Nuitee) `POST /v3.0/hotels/rates` | Free sandbox key; production key needs a card on file | Sandbox returned real hotel names and CAD prices (Cancun, Lisbon, Medellin: 125-194 hotels each with star ratings, about 13 s per city). It is a **booking API**: free within a 5,000:1 search-to-book ratio, excess "may be billed" (rate not published). Phase 1 use is **search only, in a scheduled job that refreshes the curated bands** (25 destinations x seasons x a few sample dates is a few hundred searches a month), never per user search. Terms of Service not yet read: confirm that search-only use and showing derived price ranges are allowed. Sandbox price accuracy is unverified: spot-check against Booking.com before trusting it |
+| Travel advisories **[2026-11-24]** | Global Affairs Canada JSON feed (advisory level, text, link) | Free | Used to drop countries at level 2+ (avoid non-essential or all travel) from destination selection, and to show the advisory on each result |
+| Affiliate links **[2026-11-25]** | Travelpayouts partner links API (`POST /links/v1/create`) for Travelpayouts brands; each direct program's own link builder otherwise | Token + marker 809658 + project ID (`trs`) 605382 | 100 requests/min, 10 links each. Short links seen so far redirect as: Aviasales `aviasales.com/?marker=809658.<click>`, Klook `affiliate.klook.com/redirect?aid=api|13694|<click>-809658|pid|809658&k_site=<url>`, KKday `invl.me/clndj1c?aff_sub=<click>-809658&url=<url>`. Prefer the API so clicks are tracked and tagged with `sub_id` |
 | Know before you go **[2026-11-23]** | Hand-written notes per launch destination, in our own words, each linking to the travel.gc.ca country page; advisory level from the Global Affairs Canada JSON feed (`data.international.gc.ca/travel-voyage/index-alpha-eng.json`) | Free | travel.gc.ca text may be reproduced non-commercially only; commercial reproduction needs written permission from Global Affairs. So: write our own short summaries, link to the source, don't copy text. Review a destination's notes when the feed's `date-published` changes for that country. For drones, also link the destination's civil aviation authority where one can be found |
 | FX | Any reputable FX API | Free tier ok | Daily refresh |
 
-### Lodging: curated bands
+### Lodging: bands
+**[2026-11-25]** Implemented as `lodging_bands(destination, month, tier, nightly_low, nightly_mid, nightly_high, currency, sample_size, source, as_of)`, filled from LiteAPI samples. The original curated design follows and remains the fallback.
+
 A table `lodging_price_band(destination_id, tier, season, nightly_low, nightly_mid, nightly_high, source, as_of)` for the 20-30 launch destinations, seeded by hand from public reference points and refreshed each quarter. Add a `season` column (high/shoulder/low): with no live data, seasonality is the biggest error source. Label as `estimated`. The lodging component sits behind an interface, so a hotel data feed can replace it when one is granted.
 
 ## 5. Architecture
@@ -91,6 +98,7 @@ Suggested stack (change if there is a good reason):
 - **Frontend:** Next.js/React (mobile-first)
 - **LLM layer:** provider-agnostic interface (see section 7)
 - **Secrets:** environment variables only. Never commit keys
+- **[2026-11-24] Proof of concept as built:** SQLite instead of Postgres, a CLI and FastAPI page, and a static GitHub Pages test site that runs a JavaScript port of the engine against an exported data snapshot (a parity test keeps the two engines identical). Postgres and the full API come when Gate A passes
 
 ### Modules
 ```
@@ -99,7 +107,7 @@ app/
   domain/         # pure logic: cost model, ranking, room allocation (heavily unit-tested)
   providers/      # one adapter per data source behind a common interface
     flights/      # AviasalesDataProvider
-    lodging/      # HotellookDataProvider, CuratedBandProvider (fallback)
+    lodging/      # LiteApiSampleProvider (bands), PriceIndexProvider (seasonality), CuratedBandProvider (fallback)
     activities/   # ViatorProvider (live, on destination open only)
     daily_costs/  # CuratedDailyCostProvider (World Bank PLI scaling); NumbeoProvider later
     visa/         # VisaDatasetProvider
@@ -114,7 +122,7 @@ Provider interface rule: every provider returns normalized records containing `v
 ### Data model (minimum)
 - `destination` (id, name, country, iata_codes[], region, tags[])
 - `flight_price_cache` (origin, destination, market, depart_date or month, return_date, price, currency, fetched_at, expires_at, source_link)
-- `lodging_price_band` (see above; also filled from Hotellook data with source = hotellook)
+- `lodging_price_band` (see above; filled from LiteAPI samples with source = liteapi)
 - `daily_cost` (destination_id, tier, per_person_per_day, currency, source, as_of)
 - `entry_requirement` (nationality, destination_country, status, notes, source, as_of)
 - `search_session` (inputs **without nationality**, results snapshot, created_at) for debugging and analytics
@@ -161,6 +169,8 @@ Implementation notes:
 
 ## 9. Milestones
 
+Current build order: see [../PLAN.md](../PLAN.md). Original milestones:
+
 0. **[v2] Data verification:** confirm Aviasales coverage for the launch origins in the CA market, Hotellook data units/currency/coverage for the launch destinations, Viator Basic access. Output: a coverage report. Feeds Gate A
 1. **Skeleton:** repo, CI, DB schema, provider interfaces with fakes, domain cost model + unit tests
 2. **Data ingestion:** jobs for flights cache, lodging data, daily costs, FX; curated lodging bands and entry-requirement dataset loaded for 20-30 destinations and one origin region
@@ -193,7 +203,7 @@ The v3 spec listed ten; these are the ones recoverable from the chat.
 4. **Lodging source:** settled by M0 on 2026-11-22: curated bands at launch. Open: whether Travelpayouts grants a hotel Data API on request. **2026-11-23:** LiteAPI sandbox works and could refresh the bands automatically (see 4); Duffel Stays needs sales approval and its agreement bans metasearch use.
 5. **Visa data source** and licence (replace the stopgap before scaling).
 6. **Numbeo** commercial plan: later, if at all.
-7. **Brand name, domain**, and **which affiliate accounts to open first** (spec default: Travelpayouts + Viator).
+7. **Brand name, domain**, and **which affiliate accounts to open first**. **[2026-11-25]** Joined: Aviasales, Klook, KKday (Travelpayouts). Booking.com and the other big hotel programs in Travelpayouts need more traffic. Next: Expedia Group Travel Creator Program (direct, open to anyone), Viator (direct), Kayak, Hostelworld. See [affiliate-programs-check.md](affiliate-programs-check.md).
 8. **Data-refresh hosting:** cron/GitHub Actions vs Prefect Cloud Hobby vs self-hosted.
 9. **Gate C thresholds** for the landing-page test, set before it starts.
 10. **Employer outside-business-activity policy:** check disclosure requirements.
@@ -238,6 +248,12 @@ Illustrative only: a fully booked 2-person, 5-night trip of about $2,400 earns r
 
 Rules: start with Travelpayouts and Viator; apply to chain and airline programs once the MVP site is live (approvals often need a working site). Disclose affiliate relationships. Log clicks per partner.
 
+**[2026-11-25] Availability as of today** (full table: [affiliate-programs-check.md](affiliate-programs-check.md)):
+- Joined: Aviasales, Klook (5% on all categories including hotels), KKday (3% accommodation, 5% tours and transport).
+- Open, apply now: Expedia Group Travel Creator Program (direct; covers Expedia, Hotels.com, Vrbo), Viator (direct, 8%), Kayak (direct, deep links to searches and hotel pages), Hostelworld (Partnerize).
+- Gated: Booking.com (now via CJ, needs an active website; session cookie), Skyscanner (5,000+ unique visitors a month), Expedia/Booking/Agoda/Trip.com inside Travelpayouts (traffic). Tripadvisor, Agoda, Trip.com and GetYourGuide direct terms are unconfirmed.
+- Default hotel link: Expedia (once approved), with Klook second. Booking.com when approved.
+
 ## 15. Risks and go/no-go gates [v3]
 
 Verdict: viable only as a narrow, trust-first product. As a generic "find me a trip" tool it likely loses to Google.
@@ -247,7 +263,7 @@ Verdict: viable only as a narrow, trust-first product. As a generic "find me a t
 | Google Flight Deals / AI Mode and AI assistants do "cheap flexible trips" from natural language | Pick one narrow wedge. Build owned channels (email, price alerts) since AI answers eat search traffic |
 | Price trust: flight cache is other users' searches; hotel and daily costs are estimates | Ranges, confidence labels, Gate A accuracy test before building UI |
 | Thin economics, completed-stay-only commissions, short cookies | Attach activities, cars, insurance; track earnings per click from day one; fixed costs near zero |
-| Partner gatekeeping (Booking.com, Skyscanner) | Fallback sources; apply early once a landing page is live |
+| Partner gatekeeping (Booking.com, Skyscanner) | Fallback sources; apply early once a landing page is live. **[2026-11-25]** This hit: Booking.com and the big Travelpayouts hotel programs need traffic. Cover: Expedia's direct program and Klook |
 | Legal: TICO open; wrong visa info is a liability | Gate B; nationality opt-in and session-only; replace scraped visa data before scaling |
 | Leakage: users compare here, book elsewhere later | Price alerts, saved shortlists, partners with longer cookies |
 | Unproven demand | Landing page with 20-30 destinations before the full build (Gate C) |

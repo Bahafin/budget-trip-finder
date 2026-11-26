@@ -27,8 +27,9 @@ def main(argv: list[str] | None = None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("select")
     r = sub.add_parser("refresh")
-    r.add_argument("what", choices=["reference", "flights", "hotels", "all"], default="all", nargs="?")
+    r.add_argument("what", choices=["reference", "flights", "hotels", "all", "auto"], default="all", nargs="?")
     r.add_argument("--only", help="comma-separated destination codes (hotels only)")
+    r.add_argument("--force", default="", help="auto: comma-separated steps to run even if fresh (reference,select,flights,hotels)")
     s = sub.add_parser("search")
     s.add_argument("--budget", type=float, required=True, help="total trip budget in CAD")
     s.add_argument("--adults", type=int, default=2)
@@ -53,6 +54,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "select":
         chosen = jobs.select_destinations(conn, settings)
         print(f"{len(chosen)} destinations: {' '.join(chosen)}")
+    elif args.cmd == "refresh" and args.what == "auto":
+        t = time.monotonic()
+        outcome = jobs.refresh_auto(conn, settings, force=tuple(x for x in args.force.split(",") if x))
+        for step, result in outcome.items():
+            print(f"{step:<10} {result}")
+        print(f"auto refresh finished in {time.monotonic() - t:.0f}s")
     elif args.cmd == "refresh":
         steps = ["reference", "flights", "hotels"] if args.what == "all" else [args.what]
         for step in steps:

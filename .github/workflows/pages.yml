@@ -1,10 +1,22 @@
-name: Deploy site to GitHub Pages
+name: Refresh data and deploy site
+
+# Daily: refresh whatever is due (flights daily, hotels weekly, reference data monthly), export the site
+# snapshot, check the browser engine against the Python engine, deploy to GitHub Pages.
+# The database lives in the Actions cache between runs. If the cache is lost, `refresh auto` rebuilds it
+# from scratch (about 6 minutes). If the API keys are not configured, the committed snapshot is deployed.
 
 on:
+  schedule:
+    - cron: "17 9 * * *" # 09:17 UTC = 04:17 Toronto (EST)
   push:
     branches: [main]
-    paths: ["site/**", ".github/workflows/pages.yml"]
+    paths: ["site/**", "backend/**", "data/seed/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
+    inputs:
+      force:
+        description: "Steps to run even if fresh (comma-separated: reference,select,flights,hotels)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -13,31 +25,91 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false # never kill a refresh half-way
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TRIPFINDER_DB: ${{ github.workspace }}/var/tripfinder.db
     steps:
       - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+
+      - name: Install backend
+        working-directory: backend
+        run: uv sync --locked
+
+      - name: Backend tests
+        working-directory: backend
+        run: uv run pytest -q
+
+      - name: Restore database
+        uses: actions/cache/restore@v6
+        with:
+          path: var/tripfinder.db
+          key: tripdb-${{ github.run_id }}
+          restore-keys: tripdb-
+
+      - name: Refresh data
+        id: refresh
+        working-directory: backend
+        env:
+          TRAVELPAYOUTS_TOKEN: ${{ secrets.TRAVELPAYOUTS_TOKEN }}
+          LITEAPI_KEY: ${{ secrets.LITEAPI_KEY }}
+        run: |
+          if [ -z "$TRAVELPAYOUTS_TOKEN" ] || [ -z "$LITEAPI_KEY" ]; then
+            echo "::warning::TRAVELPAYOUTS_TOKEN or LITEAPI_KEY secret missing; deploying the committed data snapshot"
+            echo "## Refresh skipped: API key secrets are not configured" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## Refresh" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            uv run python -m tripfinder refresh auto --force "${{ inputs.force }}" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f "$TRIPFINDER_DB" ]; then echo "have_db=true" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Export site data
+        if: steps.refresh.outputs.have_db == 'true'
+        working-directory: backend
+        run: |
+          uv run python -m tripfinder export
+          echo "## Data cost" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          uv run python -m tripfinder costs >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save database
+        if: steps.refresh.outputs.have_db == 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: var/tripfinder.db
+          key: tripdb-${{ github.run_id }}
+
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: node --test site/tests/parity.test.mjs
+
+      - name: Browser engine matches Python engine
+        run: node --test site/tests/parity.test.mjs
+
+      - name: Leave tests out of the published site
+        run: rm -rf site/tests
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
 
   deploy:
-    needs: test
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v7
-      - name: Leave tests out of the published site
-        run: rm -rf site/tests
-      - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v5
-        with:
-          path: site
       - id: deployment
         uses: actions/deploy-pages@v5

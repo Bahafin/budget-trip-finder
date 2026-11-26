@@ -179,3 +179,62 @@ def rebuild_bands(conn: sqlite3.Connection, min_sample: int = 5) -> int:
         n += 1
     conn.commit()
     return n
+
+
+# --- Scheduled entry point -------------------------------------------------------------------
+
+# How old each dataset may get before `refresh auto` refreshes it.
+MAX_AGE = {
+    "reference": timedelta(days=25),  # World Bank, travel advisories
+    "select": timedelta(days=30),  # destination list
+    "flights": timedelta(hours=20),  # daily
+    "hotels": timedelta(days=6),  # weekly
+}
+
+
+def last_success(conn: sqlite3.Connection, job: str) -> datetime | None:
+    row = conn.execute("SELECT MAX(at) FROM api_calls WHERE job = ? AND status BETWEEN 200 AND 399", (job,)).fetchone()
+    return datetime.fromisoformat(row[0]) if row and row[0] else None
+
+
+def due_steps(conn: sqlite3.Connection, now: datetime | None = None) -> dict[str, str]:
+    """Which refresh steps are due and why. Empty tables always count as due, so a fresh database rebuilds itself."""
+    now = now or datetime.now(UTC)
+    count = lambda sql: conn.execute(sql).fetchone()[0]
+    empty = {
+        "reference": count("SELECT COUNT(*) FROM advisories") == 0 or count("SELECT COUNT(*) FROM price_levels") == 0,
+        "select": count("SELECT COUNT(*) FROM destinations WHERE selected = 1") == 0,
+        "flights": count("SELECT COUNT(*) FROM fares") == 0,
+        "hotels": count("SELECT COUNT(*) FROM lodging_bands") == 0,
+    }
+    due: dict[str, str] = {}
+    for step, max_age in MAX_AGE.items():
+        last = last_success(conn, step)
+        if empty[step]:
+            due[step] = "no data yet"
+        elif last is None or now - last > max_age:
+            due[step] = f"last refreshed {last:%Y-%m-%d %H:%M} UTC" if last else "never refreshed"
+    if "select" in due:
+        # New destinations need fresh flights and hotels too.
+        due.setdefault("flights", "destination list changed")
+        due.setdefault("hotels", "destination list changed")
+    return due
+
+
+def refresh_auto(conn: sqlite3.Connection, s: Settings, force: tuple[str, ...] = ()) -> dict[str, str]:
+    """Run whatever is due, in dependency order. One failing step does not stop the others."""
+    due = due_steps(conn)
+    for step in force:
+        due.setdefault(step, "forced")
+    steps = {"reference": refresh_reference, "select": select_destinations, "flights": refresh_flights, "hotels": refresh_hotels}
+    outcome: dict[str, str] = {}
+    for step, fn in steps.items():
+        if step not in due:
+            outcome[step] = "skipped (fresh)"
+            continue
+        try:
+            result = fn(conn, s)
+            outcome[step] = f"ran ({due[step]}): {result if not isinstance(result, list) else f'{len(result)} destinations'}"
+        except Exception as e:  # noqa: BLE001 - report and carry on; the export uses whatever data exists
+            outcome[step] = f"FAILED ({due[step]}): {type(e).__name__}: {str(e)[:200]}"
+    return outcome

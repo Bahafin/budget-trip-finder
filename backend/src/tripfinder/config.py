@@ -34,13 +34,16 @@ class Settings:
     destinations: int = 25
     hotel_sample_nights: int = 3
     hotel_radius_m: int = 10000
+    travelpayouts_project_id: str = "605382"  # "Bahafin" project (trs); public, appears in partner links
 
 
 def load_settings() -> Settings:
     env = {**_load_env_file(ROOT / ".env"), **os.environ}
     return Settings(
         travelpayouts_token=env.get("TRAVELPAYOUTS_TOKEN", ""),
-        travelpayouts_marker=env.get("TRAVELPAYOUTS_MARKER", ""),
+        # Partner ID and project ID are public (they appear in every affiliate link); env vars override.
+        travelpayouts_marker=env.get("TRAVELPAYOUTS_MARKER") or "809658",
+        travelpayouts_project_id=env.get("TRAVELPAYOUTS_PROJECT_ID") or "605382",
         liteapi_key=env.get("LITEAPI_KEY", ""),
         db_path=Path(env.get("TRIPFINDER_DB", ROOT / "var" / "tripfinder.db")),
         seed_dir=ROOT / "data" / "seed",

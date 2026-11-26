@@ -84,9 +84,9 @@ Docs: docs.nuitee.com (hotel rates, min-rates, static hotel data, flights, exper
 
 ## Still to check
 
-- [ ] Travelpayouts support reply on hotel Data API.
+- [x] ~~Travelpayouts support reply on hotel Data API.~~ Not needed: the help centre FAQ says Aviasales has no hotel API (2026-11-25). Hotels come from LiteAPI.
 - [ ] Visa dataset rows for Canadian passports.
-- [ ] World Bank price level index for candidate countries.
+- [x] World Bank price levels: the old indicator is archived; derived from PPP / FX instead (built into `refresh reference`, 2026-11-23).
 - [ ] Read LiteAPI Terms of Service: search-only use, displaying derived price ranges, any metasearch clause.
-- [ ] Spot-check LiteAPI sandbox hotel prices against Booking.com for the same hotels and dates.
-- [ ] Pick 25 launch destinations (flight coverage above + curated bands feasible).
+- [x] Spot-checked LiteAPI hotel prices against Booking.com (2026-11-24): medians within -12% to +8%. See validation-2026-11-24.md.
+- [x] 25 launch destinations picked automatically by flight coverage, skipping countries at advisory level 2+ (`python -m tripfinder select`, 2026-11-23).
