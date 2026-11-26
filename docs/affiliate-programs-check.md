@@ -39,6 +39,8 @@ Checked 2026-11-25, from official partner pages where they could be read. Third-
 - Programs joined through Travelpayouts (Aviasales, Klook, KKday) can use the partner-links API.
 - Direct programs (Expedia, Viator, Kayak, Hostelworld) each have their own link builder or deep-link format. One example link from each, created in its dashboard, is enough to build trip-specific links automatically.
 
+**Viator update (2026-11-26):** registered; sandbox key received. API facts from docs.viator.com/partner-api/technical: header `exp-api-key`, `Accept: application/json;version=2.0` required, sandbox base `api.sandbox.viator.com/partner` (production `api.viator.com/partner`). Affiliates get tracked `productUrl` and `destinationUrl` links (mcid and pid parameters; optional `campaign-value` for our own tracking). Basic access covers destinations, product search, product details, tags and attractions; reviews and bulk ingestion need Full access. The first key test returned "Invalid API Key" on both addresses (owner checking, TODO.md).
+
 Sources: booking.com/affiliate-program/v2, cj.com/en-gb/publisher/partners/booking.com, creator.expediagroup.com, partnerresources.viator.com (affiliate and levels-of-access pages), partners.skyscanner.net/product/affiliates, affiliates.kayak.com (deeplinks and apis pages), partners.hostelworld.com, affiliate.klook.com, travelpayouts.com/en/offers/klook-affiliate-program, travelpayouts.com/en/offers/kkday-affiliate-program, trip.com/partners.
 
 ## Link formats seen (2026-11-25)
