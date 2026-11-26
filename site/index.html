@@ -138,6 +138,8 @@
           padding: 6px 14px; cursor: pointer; min-height: 34px; }
   .chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
   .chip:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .route { margin: 0 0 -6px; font-size: 14px; font-weight: 600; }
+  .route span { font-weight: 400; color: var(--muted); }
   .bestfor { margin: 0; font-size: 14px; color: var(--muted); }
   .bestfor b { color: var(--ink); }
   .close { grid-column: 1 / -1; background: var(--surface); border: 1px dashed var(--line); border-radius: 14px; padding: 18px 22px; }
@@ -356,6 +358,9 @@ function card(p, req, data) {
   c.append(fig);
 
   const b = el("div", { class: "body" });
+  // Route line: where from and how (stops are known only for exact cached fares)
+  const via = stops(p.fare.transfers);
+  b.append(el("p", { class: "route" }, `${originName} → ${p.dest.name}`, via ? el("span", {}, `, ${via}`) : null));
   b.append(el("div", { class: "when" },
     el("span", { class: "pill" }, `${p.nights} nights`),
     el("span", { class: "pill" }, `${day(p.fare.depart)} → ${day(p.fare.ret)}`),
@@ -372,7 +377,7 @@ function card(p, req, data) {
   if (hub) b.append(el("p", { class: "breakdown" }, el("a", { href: hub }, `See the full cost breakdown for ${p.dest.name}`)));
   const diff = req.budget - p.total.expected;
   b.append(el("div", { class: `left ${p.fit}` }, p.fit === "within"
-    ? `About ${money(diff)} under your ${money(req.budget)} budget at the expected price.`
+    ? `Leaves about ${money(Math.floor(diff / 10) * 10)} for extras (under your ${money(req.budget)} budget at the expected price).`
     : `About ${money(-diff)} over at the expected price; fits only if prices land near the low end.`));
   b.append(meter(p, req.budget));
 

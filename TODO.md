@@ -4,14 +4,17 @@ Things only you can do: accounts, terms, payments, legal and decisions. The buil
 
 ## Now (unblocks Stage 1: tester-ready site)
 
-- [ ] **Register the Far Enough name** (decided 2026-11-26). In one sitting, so nobody grabs them in between:
-  - re-check availability
-  - register **farenoughtrips.com** first: it's the **development domain** while we build with one departure city (decided 2026-11-26). The site stays hidden from search engines until the launch domain is final.
-  - also register **farenough.ca** now to hold it (about $15 a year). Likely the launch domain later (Canadian signal). It probably needs a CIRA-certified registrar; Cloudflare's registrar may not sell .ca (check). farenough.com is taken
-  - open a free **Cloudflare** account and point both domains' DNS (nameservers) to it. Free DNS, redirects, HTTPS and email forwarding
-  - claim **@farenoughtrips** on Instagram, TikTok and YouTube (and X if free)
-  - then tell me, and I'll put the name, tagline ("See how far your budget goes.") and domain on the site
-  - optional: a trademark agent's clearance search before spending on the brand
+- [x] **farenoughtrips.com registered** (done 2026-11-26). It's the development domain; the site stays hidden from search engines until the launch domain is final.
+- [ ] **Hosting setup, in this order** (about 30 minutes; recommended 2026-11-26). After step 4 I do the rest: the deploy change, the www redirect and the checks.
+  1. **Cloudflare account:** sign up free at dash.cloudflare.com. Turn on two-factor sign-in.
+  2. **Add the domain:** Add a domain → farenoughtrips.com → Free plan. Cloudflare shows two nameservers (like `xxx.ns.cloudflare.com`). At the registrar where you bought the domain, replace its nameservers with those two. It can take from minutes to a day; Cloudflare emails you when the domain is active. If your registrar is Cloudflare itself, skip this step.
+  3. **API token for the daily deploy:** My Profile → API Tokens → Create Token → Custom token, permission **Account → Cloudflare Pages → Edit**, limited to your account. Copy the token and your **Account ID** (on the domain's overview page, right column).
+  4. **Two GitHub secrets** at github.com/Bahafin/budget-trip-finder → Settings → Secrets and variables → Actions: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Then tell me.
+  5. **(after my first deploy) Attach the domain:** Workers & Pages → farenough → Custom domains → Set up a custom domain → farenoughtrips.com (and www.farenoughtrips.com). Cloudflare adds the DNS records and HTTPS itself.
+  6. **Email forwarding:** domain → Email → Email Routing → Get started. Add `hello@farenoughtrips.com` forwarding to your Gmail and click the confirmation email Google receives. Cloudflare adds the mail records itself.
+- [ ] **farenough.ca:** register it to hold it (about $15 a year), likely the launch domain. It needs a CIRA-certified registrar (Cloudflare's registrar may not sell .ca; check). Later, point its nameservers to Cloudflare too. farenough.com is taken.
+- [ ] **Social handles:** claim **@farenoughtrips** on Instagram, TikTok and YouTube (and X if free).
+- [ ] optional: a trademark agent's clearance search before spending on the brand.
 - [ ] **Expedia: find how to make a link to any page.** Your link (`expedia.com/affiliate/fsA8EBn`) is a short code, and Expedia blocks automated requests, so I can't see the format behind it. In the Creator Toolbox Link Builder, build a link for a **hotel search page** (e.g. Cancún, 2 adults, specific dates) and send me both the page URL you pasted and the link it gave you. If the Toolbox mentions a deep-link or URL parameter format (for example an affiliate ID you can add to any Expedia URL), send that instead. It's better.
 - [x] **Viator registration** (done 2026-11-26; sandbox key stored in `.env` as VIATOR_API_KEY, not in the repo).
 - [ ] **Viator key says "Invalid API Key"** (checked 2026-11-26 on both the sandbox and production addresses). In the Viator Partner Platform, check: (1) the key is active (new keys can take a while), (2) whether it's a sandbox or production key, (3) your partner ID (pid, starts with P00...) and access level (Basic affiliate is enough for us). If it still fails tomorrow, email affiliateapi@tripadvisor.com.
@@ -37,11 +40,11 @@ Things only you can do: accounts, terms, payments, legal and decisions. The buil
 - [ ] **Employer outside-business-activity policy**: check disclosure rules. The Gate A report is your evidence that it works and costs almost nothing.
 - [ ] **TICO**: ask in writing whether a referral-only site (affiliate links, no bookings or payments) needs registration in Ontario (Gate B). **Decision 2026-11-26: left open; building continues as if the answer is fine.** Ask before public promotion or paid traffic.
 - [ ] **Email** (plan discussed 2026-11-26):
-  - **Mailbox:** hello@ on the domain, forwarded to your Gmail by Cloudflare Email Routing (free). To send as that address: the sign-up provider's mail service or a free Zoho mailbox; Google Workspace (about $8-10 a month) only if you want a separate inbox.
+  - **Mailbox:** hello@farenoughtrips.com, forwarded to your Gmail by Cloudflare Email Routing (free). To send as that address: the sign-up provider's mail service or a free Zoho mailbox; Google Workspace (about $8-10 a month) only if you want a separate inbox.
   - **Sign-ups and alerts:** pick the provider. My suggestion: **MailerLite** (free tier, double opt-in, sign-up forms; check current limits). Personal "tell me when it fits" alerts come later: saved searches stored with us, sent through a transactional service (Brevo or Resend free tiers).
   - **CASL:** every email needs a mailing address. A PO box works if you'd rather not use your home address.
   - Needed before the landing page (content plan week 4).
-- [ ] **Hosting** (recommended 2026-11-26, your call): move the site to **Cloudflare Pages** (free, commercial use allowed, and Workers give us the small server code that sign-ups, alerts and chat search need), keeping GitHub for the code and the daily refresh. GitHub Pages works with a custom domain too, but its terms may discourage a business site (check the current terms). Needs: your Cloudflare account, then one Cloudflare API token as a GitHub secret.
+- [ ] **Hosting:** Cloudflare Pages chosen; your setup steps are under "Now" above. GitHub keeps the code and the daily refresh.
 - [ ] **Launch with several departure cities, not just Toronto** (decided 2026-11-26). Toronto stays the development city; Montreal and Vancouver are the first test cities.
 
 ## Later, once the site has traffic
