@@ -16,6 +16,7 @@ def _log(conn, job, at):
 def _fill(conn):
     conn.execute("INSERT INTO advisories VALUES ('MX',1,'t','u','p','f')")
     conn.execute("INSERT INTO price_levels VALUES ('MX',0.6,'2025','f')")
+    conn.execute("INSERT INTO airlines VALUES ('AC','Air Canada')")
     conn.execute("INSERT INTO destinations VALUES ('CUN','Cancun','MX',21.1,-86.8,10,1)")
     conn.execute("INSERT INTO fares VALUES ('CUN','2027-01-10','2027-01-17',300,'CAD','AC',0,'','2026-11-20','f')")
     conn.execute("INSERT INTO lodging_bands VALUES ('CUN','2027-01','mid',100,150,200,'CAD',30,'liteapi','2026-11-20')")

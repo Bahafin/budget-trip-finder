@@ -92,7 +92,11 @@ def main(argv: list[str] | None = None) -> int:
         from pathlib import Path
 
         from .export import write_golden, write_snapshot
+        from .links import check_template
+        from .meter import Meter
 
+        if settings.travelpayouts_token and not check_template(Meter(conn, "links"), settings):
+            raise SystemExit("Travelpayouts partner link format changed: update PROGRAMS in links.py before exporting")
         print("snapshot:", write_snapshot(conn, settings, Path(args.out)))
         print("golden cases:", write_golden(conn, settings, Path(args.golden)))
     return 0

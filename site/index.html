@@ -83,7 +83,7 @@
   </footer>
 </main>
 <script type="module">
-import { prepare, roomsNeeded, search } from "./engine.js";
+import { hotelLinkFor, prepare, search } from "./engine.js";
 
 const f = document.getElementById("f");
 const out = document.getElementById("results");
@@ -97,14 +97,6 @@ function el(tag, attrs = {}, ...kids) {
   for (const [k, v] of Object.entries(attrs)) k === "class" ? (e.className = v) : e.setAttribute(k, v);
   for (const k of kids) e.append(k instanceof Node ? k : document.createTextNode(k));
   return e;
-}
-
-function hotelLink(p, req) {
-  const q = new URLSearchParams({
-    ss: p.dest.name, checkin: p.fare.depart, checkout: p.fare.ret,
-    group_adults: req.adults, group_children: req.children, no_rooms: roomsNeeded(req.adults, req.children),
-  });
-  return "https://www.booking.com/searchresults.html?" + q;
 }
 
 function card(p, req, data) {
@@ -138,8 +130,9 @@ function card(p, req, data) {
       el("a", { href: n.source_url, target: "_blank", rel: "noopener" }, "Source")));
   }
   const links = el("div", { class: "links" });
-  if (p.fare.link) links.append(el("a", { href: p.fare.link, target: "_blank", rel: "noopener sponsored" }, "Check flights →"));
-  links.append(el("a", { href: hotelLink(p, req), target: "_blank", rel: "noopener" }, "Check hotels →"));
+  if (p.fare.link) links.append(el("a", { href: p.fare.link, target: "_blank", rel: "noopener sponsored" }, "Check flights on Aviasales →"));
+  const hotel = hotelLinkFor(p.dest, p.fare, req);
+  if (hotel) links.append(el("a", { href: hotel.url, target: "_blank", rel: "noopener sponsored" }, `Check hotels on ${hotel.partner} →`));
   c.append(links);
   return c;
 }

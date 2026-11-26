@@ -42,6 +42,9 @@ CREATE TABLE IF NOT EXISTS price_levels (
 CREATE TABLE IF NOT EXISTS advisories (
     country_code TEXT PRIMARY KEY, level INTEGER, text TEXT, url TEXT, published TEXT, fetched_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS airlines (
+    code TEXT PRIMARY KEY, name TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS api_calls (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     job TEXT, provider TEXT NOT NULL, endpoint TEXT NOT NULL,

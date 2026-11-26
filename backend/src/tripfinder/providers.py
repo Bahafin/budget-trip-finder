@@ -11,6 +11,7 @@ from .meter import Meter
 
 AVIASALES_URL = "https://api.travelpayouts.com/aviasales/v3/prices_for_dates"
 CITIES_URL = "https://api.travelpayouts.com/data/en/cities.json"
+AIRLINES_URL = "https://api.travelpayouts.com/data/en/airlines.json"
 LITEAPI_RATES_URL = "https://api.liteapi.travel/v3.0/hotels/rates"
 WORLDBANK_URL = "https://api.worldbank.org/v2/country/all/indicator/{indicator}"
 GAC_URL = "https://data.international.gc.ca/travel-voyage/index-alpha-eng.json"
@@ -77,6 +78,12 @@ def parse_fares(payload: dict[str, Any], today: date) -> list[RawFare]:
 
 def fetch_cities(meter: Meter) -> list[dict[str, Any]]:
     return meter.request("travelpayouts-data", CITIES_URL)
+
+
+def fetch_airlines(meter: Meter) -> dict[str, str]:
+    """IATA code -> English airline name (free Travelpayouts data file)."""
+    rows = meter.request("travelpayouts-data", AIRLINES_URL)
+    return {r["code"]: (r.get("name_translations") or {}).get("en") or r.get("name") or r["code"] for r in rows if r.get("code")}
 
 
 # --- LiteAPI (Nuitee) hotel rates ----------------------------------------------

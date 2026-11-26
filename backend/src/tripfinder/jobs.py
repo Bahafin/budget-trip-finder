@@ -41,8 +41,10 @@ def refresh_reference(conn: sqlite3.Connection, s: Settings) -> dict[str, int]:
         "INSERT OR REPLACE INTO advisories VALUES (?,?,?,?,?,?)",
         [(a.country_code, a.level, a.text, a.url, a.published, _now()) for a in advisories],
     )
+    airlines = p.fetch_airlines(meter)
+    conn.executemany("INSERT OR REPLACE INTO airlines VALUES (?,?)", list(airlines.items()))
     conn.commit()
-    return {"price_levels": len(levels), "advisories": len(advisories)}
+    return {"price_levels": len(levels), "advisories": len(advisories), "airlines": len(airlines)}
 
 
 def select_destinations(conn: sqlite3.Connection, s: Settings) -> list[str]:
@@ -202,7 +204,7 @@ def due_steps(conn: sqlite3.Connection, now: datetime | None = None) -> dict[str
     now = now or datetime.now(UTC)
     count = lambda sql: conn.execute(sql).fetchone()[0]
     empty = {
-        "reference": count("SELECT COUNT(*) FROM advisories") == 0 or count("SELECT COUNT(*) FROM price_levels") == 0,
+        "reference": any(count(f"SELECT COUNT(*) FROM {t}") == 0 for t in ("advisories", "price_levels", "airlines")),
         "select": count("SELECT COUNT(*) FROM destinations WHERE selected = 1") == 0,
         "flights": count("SELECT COUNT(*) FROM fares") == 0,
         "hotels": count("SELECT COUNT(*) FROM lodging_bands") == 0,

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import csv
 import sqlite3
-import urllib.parse
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
@@ -22,6 +21,7 @@ from .engine import (
     rank,
     rooms_needed,
 )
+from .links import flight_link, hotel_link
 from .money import Money, PriceRange
 
 
@@ -72,12 +72,12 @@ def to_dict(pkg: Package, req: TripRequest, conn: sqlite3.Connection, s: Setting
     fare = pkg.fare
     links: dict[str, str] = {}
     if fare and fare.link:
-        sep = "&" if "?" in fare.link else "?"
-        links["flights"] = f"https://www.aviasales.com{fare.link}{sep}marker={s.travelpayouts_marker}"
+        links["flights"] = flight_link(s, fare.link, d.code)
     if fare:
         rooms = rooms_needed(req.adults, req.children)
-        q = {"ss": d.name, "checkin": fare.depart.isoformat(), "checkout": fare.ret.isoformat(), "group_adults": req.adults, "group_children": req.children, "no_rooms": rooms}
-        links["hotels"] = "https://www.booking.com/searchresults.html?" + urllib.parse.urlencode(q)  # affiliate id added once the program is joined
+        hotel = hotel_link(s, d.name, d.country_code, d.code, fare.depart.isoformat(), fare.ret.isoformat(), req.adults, req.children, rooms)
+        links["hotels"] = hotel["url"]
+        links["hotels_partner"] = hotel["partner"]
     return {
         "code": d.code,
         "name": d.name,

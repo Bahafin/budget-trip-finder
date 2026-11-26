@@ -20,6 +20,7 @@ from .engine import (
     NIGHTLY_BASE_CAD,
     NIGHTS_TOLERANCE,
 )
+from .links import flight_link, hotel_link
 from .search import load_destinations, load_notes
 
 
@@ -33,7 +34,7 @@ def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = N
         if r["country_code"] in countries
     }
     notes = {c: v for c, v in load_notes(s.seed_dir).items() if c in countries}
-    marker = s.travelpayouts_marker
+    airlines = {r["code"]: r["name"] for r in conn.execute("SELECT * FROM airlines")}
     out_dests = []
     for d in dests:
         out_dests.append(
@@ -42,13 +43,17 @@ def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = N
                 "name": d.name,
                 "country": d.country_code,
                 "priceLevel": float(d.price_level) if d.price_level is not None else None,
+                # "Check hotels" link; the browser fills {checkin} {checkout} {adults} {children} {rooms}.
+                "hotel": hotel_link(s, d.name, d.country_code, d.code, "{checkin}", "{checkout}", "{adults}", "{children}", "{rooms}"),
                 "fares": [
                     {
                         "depart": f.depart.isoformat(),
                         "ret": f.ret.isoformat(),
                         "price": float(f.price.amount),
                         "foundOn": f.found_on.isoformat(),
-                        "link": f"https://www.aviasales.com{f.link}{'&' if '?' in f.link else '?'}marker={marker}" if f.link else "",
+                        "link": flight_link(s, f.link, d.code) if f.link else "",
+                        "airline": airlines.get(f.airline, f.airline),
+                        "transfers": f.transfers,
                     }
                     for f in sorted(d.fares, key=lambda f: (f.depart, f.price.amount))
                 ],

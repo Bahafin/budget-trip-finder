@@ -16,6 +16,18 @@ const range = (low, expected, high) => {
 const scale = (r, f) => ({ low: r.low * f, expected: r.expected * f, high: r.high * f });
 const add = (a, b) => ({ low: a.low + b.low, expected: a.expected + b.expected, high: a.high + b.high });
 
+// "Check hotels" link for a trip. The export gives each destination a template; placeholders may be URL-encoded.
+export function hotelLinkFor(dest, fare, req) {
+  if (!dest.hotel) return null;
+  const values = {
+    checkin: fare.depart, checkout: fare.ret, adults: req.adults, children: req.children,
+    rooms: roomsNeeded(req.adults, req.children),
+  };
+  let url = dest.hotel.url;
+  for (const [k, v] of Object.entries(values)) url = url.replaceAll(`{${k}}`, v).replaceAll(`%7B${k}%7D`, v);
+  return { url, partner: dest.hotel.partner };
+}
+
 export function roomsNeeded(adults, children) {
   return Math.max(Math.ceil(adults / 2), Math.ceil((adults + children) / 4), 1);
 }
@@ -50,6 +62,7 @@ function flightComponent(dest, req, nights, month, today, C) {
   const age = Math.max(0, daysBetween(best.foundOn, today)); // data stamped in UTC can be "tomorrow" locally
   const detail =
     `${pool.length} cached fares, cheapest $${Math.round(best.price)} pp on ${best.depart}, ${best.nights} nights` +
+    (best.airline ? `, ${best.airline}${best.transfers ? `, ${best.transfers} stop${best.transfers > 1 ? "s" : ""}` : ", direct"}` : "") +
     (exact ? "" : ` (no fare near ${nights} nights; used nearest dates)`);
   return {
     comp: { name: "flights", ...scale(perPerson, req.adults + req.children), confidence: exact ? `cached (${age}d)` : "estimated", detail },
