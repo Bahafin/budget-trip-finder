@@ -203,9 +203,9 @@ The v3 spec listed ten; these are the ones recoverable from the chat.
 4. **Lodging source:** settled by M0 on 2026-11-22: curated bands at launch. Open: whether Travelpayouts grants a hotel Data API on request. **2026-11-23:** LiteAPI sandbox works and could refresh the bands automatically (see 4); Duffel Stays needs sales approval and its agreement bans metasearch use.
 5. **Visa data source** and licence (replace the stopgap before scaling).
 6. **Numbeo** commercial plan: later, if at all.
-7. **Brand name, domain**, and **which affiliate accounts to open first**. **[2026-11-25]** Joined: Aviasales, Klook, KKday (Travelpayouts). Booking.com and the other big hotel programs in Travelpayouts need more traffic. Next: Expedia Group Travel Creator Program (direct, open to anyone), Viator (direct), Kayak, Hostelworld. See [affiliate-programs-check.md](affiliate-programs-check.md).
+7. **Brand name [2026-11-26]: decided, Far Enough** (tagline "See how far your budget goes."; descriptor "Whole-trip budgets from Toronto"). Domain farenough.ca + farenoughtrips.com and handles @farenoughtrips to register. See docs/brand/. **Domain**, and **which affiliate accounts to open first**. **[2026-11-25]** Joined: Aviasales, Klook, KKday (Travelpayouts). Booking.com and the other big hotel programs in Travelpayouts need more traffic. Next: Expedia Group Travel Creator Program (direct, open to anyone), Viator (direct), Kayak, Hostelworld. See [affiliate-programs-check.md](affiliate-programs-check.md).
 8. **Data-refresh hosting:** cron/GitHub Actions vs Prefect Cloud Hobby vs self-hosted.
-9. **Gate C thresholds** for the landing-page test, set before it starts.
+9. **Gate C thresholds [2026-11-26]: agreed.** At least 1,000 unique visitors. Pass: sign-ups at least 5%, partner clicks at least 15% of searchers, 10+ unprompted replies. Fail: under 2% and under 8%.
 10. **Employer outside-business-activity policy:** check disclosure requirements.
 11. **Know before you go [2026-11-23]:** ask Global Affairs Canada for written permission to quote travel.gc.ca text, or keep to our own summaries plus links (default).
 

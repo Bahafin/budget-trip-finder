@@ -4,6 +4,12 @@ Things only you can do: accounts, terms, payments, legal and decisions. The buil
 
 ## Now (unblocks Stage 1: tester-ready site)
 
+- [ ] **Register the Far Enough name** (decided 2026-11-26). In one sitting, so nobody grabs them in between:
+  - re-check availability
+  - register **farenough.ca** and **farenoughtrips.com** (farenough.com is taken)
+  - claim **@farenoughtrips** on Instagram, TikTok and YouTube (and X if free)
+  - then tell me, and I'll put the name, tagline ("See how far your budget goes.") and domain on the site
+  - optional: a trademark agent's clearance search before spending on the brand
 - [ ] **Expedia: find how to make a link to any page.** Your link (`expedia.com/affiliate/fsA8EBn`) is a short code, and Expedia blocks automated requests, so I can't see the format behind it. In the Creator Toolbox Link Builder, build a link for a **hotel search page** (e.g. Cancún, 2 adults, specific dates) and send me both the page URL you pasted and the link it gave you. If the Toolbox mentions a deep-link or URL parameter format (for example an affiliate ID you can add to any Expedia URL), send that instead. It's better.
 - [ ] **Apply to Viator directly**: partners.viator.com. No traffic minimum, 8%, 30-day cookie. It's for the activities section, and its Basic API is instant. Send me one example link and the API key once approved.
 - [ ] **Add two GitHub repo secrets** so the daily refresh can run: `TRAVELPAYOUTS_TOKEN` and `LITEAPI_KEY`. Do it at github.com/Bahafin/budget-trip-finder → Settings → Secrets and variables → Actions → New repository secret. Or from a terminal: `gh secret set TRAVELPAYOUTS_TOKEN -R Bahafin/budget-trip-finder` (it asks for the value). If you're about to generate new keys, add the new ones. The partner ID and project ID are public and already in the code.
@@ -25,10 +31,9 @@ Things only you can do: accounts, terms, payments, legal and decisions. The buil
 
 ## Decisions and legal (before public launch)
 
-- [ ] **Brand name and domain**: needed for the landing page (Stage 3) and for the Booking.com and Skyscanner applications.
-- [ ] **Gate C thresholds**: how many sign-ups and clicks in 4-6 weeks count as "people want this". Set them before the landing page goes live.
 - [ ] **Employer outside-business-activity policy**: check disclosure rules. The Gate A report is your evidence that it works and costs almost nothing.
-- [ ] **TICO**: ask in writing whether a referral-only site (affiliate links, no bookings or payments) needs registration in Ontario (Gate B).
+- [ ] **TICO**: ask in writing whether a referral-only site (affiliate links, no bookings or payments) needs registration in Ontario (Gate B). **Decision 2026-11-26: left open; building continues as if the answer is fine.** Ask before public promotion or paid traffic.
+- [ ] **Email provider** for sign-ups and alerts (MailerLite, Buttondown or similar; CASL-compliant double opt-in). Needed before the landing page (content plan week 4).
 
 ## Later, once the site has traffic
 
@@ -46,3 +51,6 @@ Things only you can do: accounts, terms, payments, legal and decisions. The buil
 - [x] Expedia Group Travel Creator Program joined; first link `expedia.com/affiliate/fsA8EBn` (2026-11-26)
 - [x] LiteAPI sandbox account; Duffel test account (Duffel parked for Phase 2)
 - [x] Public repo and test site approved (2026-11-23)
+- [x] Brand name chosen: **Far Enough**, tagline "See how far your budget goes." (2026-11-26; see docs/brand/)
+- [x] Gate C thresholds accepted (2026-11-26; see PLAN.md Stage 3)
+- [x] Site redesign approved and merged (2026-11-26)

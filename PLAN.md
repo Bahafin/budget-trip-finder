@@ -96,10 +96,15 @@ Done when the Gate A report exists. **This is the evidence for the employer and 
 
 ### Stage 3: Landing page and demand test (Gate C, in parallel)
 
-- [ ] Brand name and domain (owner).
+- [x] Brand name chosen: **Far Enough** (2026-11-26); plans in docs/brand/ and docs/content/. Domain and handles to register (owner, TODO.md).
 - [ ] Landing page: the pitch, a few live example trips, email sign-up, affiliate disclosure. It also gives the Booking.com (CJ) and Skyscanner applications a real site to review.
 - [ ] Simple, privacy-friendly analytics: visits, sign-ups, clicks.
-- [ ] Run 4-6 weeks against thresholds set in advance (owner).
+- [ ] Run 4-6 weeks against the **agreed Gate C thresholds** (2026-11-26), judged after at least 1,000 unique visitors:
+  - **Pass:** email sign-ups at least 5% of visitors, partner clicks at least 15% of searchers, and 10+ unprompted replies.
+  - **Fail:** sign-ups under 2% and clicks under 8%.
+  - **In between:** change one thing, run 2 more weeks.
+- [ ] Programmatic destination and month pages, per docs/content/programmatic-pages.md (March break page live by 2027-01-04).
+- **Gate B timing (decision 2026-11-26):** left open. Building continues as if TICO's answer is fine. Ask TICO before public promotion or paid traffic.
 
 ### Stage 4: Real product (after Gate A passes)
 
