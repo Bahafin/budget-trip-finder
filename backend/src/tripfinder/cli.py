@@ -43,6 +43,12 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("costs")
     sv = sub.add_parser("serve")
     sv.add_argument("--port", type=int, default=8000)
+    ga = sub.add_parser("gate-a", help="50-trip accuracy test: generate a check sheet, or report on a filled one")
+    ga.add_argument("action", choices=["generate", "report"])
+    ga.add_argument("--n", type=int, default=50)
+    ga.add_argument("--seed", type=int, default=2026)
+    ga.add_argument("--sheet", default=str(ROOT / "docs" / "gate-a" / "sheet.csv"))
+    ga.add_argument("--out", default=str(ROOT / "docs" / "gate-a" / "report.md"))
     ex = sub.add_parser("export", help="write the static site data snapshot (and parity cases for the JS engine)")
     ex.add_argument("--out", default=str(ROOT / "site" / "data.json"))
     ex.add_argument("--golden", default=str(ROOT / "site" / "tests" / "golden.json"))
@@ -88,6 +94,24 @@ def main(argv: list[str] | None = None) -> int:
         from .web import create_app
 
         uvicorn.run(create_app(settings), host="127.0.0.1", port=args.port)
+    elif args.cmd == "gate-a":
+        from pathlib import Path
+
+        from . import gate_a
+
+        sheet = Path(args.sheet)
+        if args.action == "generate":
+            if sheet.exists():
+                raise SystemExit(f"{sheet} exists; pass --sheet with a new name so filled-in prices are never overwritten")
+            rows = gate_a.generate(conn, args.n, args.seed)
+            gate_a.write_sheet(rows, sheet)
+            print(f"{len(rows)} trips written to {sheet} ({sum(1 for r in rows if r['holiday'])} on holiday dates, "
+                  f"{len({r['destination'] for r in rows})} destinations)")
+        else:
+            text = gate_a.report(sheet)
+            Path(args.out).write_text(text + "\n", encoding="utf8")
+            print(text.split("\n\n")[0:3][-1] if text else "")
+            print(f"report written to {args.out}")
     elif args.cmd == "export":
         from pathlib import Path
 
