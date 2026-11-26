@@ -4,145 +4,406 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<meta name="description" content="Prototype: whole-trip packages from Toronto for a total budget.">
+<meta name="description" content="Prototype: whole-trip ideas from Toronto for a total budget, with flights, hotel and daily spending estimated in CAD.">
+<meta name="color-scheme" content="light dark">
 <title>Budget Trip Finder</title>
+<link rel="preconnect" href="https://thumb.wikimedia.org">
 <style>
+  /* ---- Brand tokens: swap these to rebrand. ---- */
   :root {
-    --bg: #f7f6f3; --card: #ffffff; --ink: #1d1d1b; --muted: #6b6a66; --line: #e3e1dc;
-    --accent: #0f6e5c; --on-accent: #ffffff; --flights: #3d6fb6; --lodging: #c07a2c; --daily: #7a8f3a;
-    --warn-bg: #fff4dc; --warn-ink: #7a5200; --stretch: #a15c00; --proto-bg: #e8f1ee; --proto-ink: #0b4f42;
+    --brand-name: "Budget Trip Finder";
+    --brand: #0b6e63;        /* primary: buttons, links, "fits" */
+    --brand-strong: #08564d;
+    --on-brand: #ffffff;
+    --sun: #f4a03a;          /* warm accent */
+    --font-display: ui-rounded, "SF Pro Rounded", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+    --bg: #f6f4ef; --surface: #ffffff; --surface-2: #f1eee7; --ink: #1b1d1c; --muted: #5d625f; --line: #e2ddd3;
+    --flights: #2f66b3; --lodging: #b8681c; --daily: #5f7a22;
+    --fit-bg: #dff3ec; --fit-ink: #075347; --stretch-bg: #fdecd2; --stretch-ink: #7a4300;
+    --warn-bg: #fff4dc; --warn-ink: #6b4700; --info-bg: #eaf1fb; --info-ink: #1f4677;
+    --shadow: 0 1px 2px rgb(20 30 25 / 6%), 0 8px 24px rgb(20 30 25 / 8%);
+    --radius: 18px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #161615; --card: #201f1d; --ink: #ecebe7; --muted: #a09e98; --line: #34332f;
-      --accent: #4fc2a8; --on-accent: #0c1f1a; --flights: #78a1e0; --lodging: #e0a160; --daily: #a9bf68;
-      --warn-bg: #3a2f14; --warn-ink: #f2cf7a; --stretch: #f0a54a; --proto-bg: #16302a; --proto-ink: #9fe0cf;
+      --brand: #4cc4b0; --brand-strong: #7bd9c9; --on-brand: #06231f; --sun: #f6b25e;
+      --bg: #121514; --surface: #1b1f1e; --surface-2: #232827; --ink: #ecefed; --muted: #a3aaa7; --line: #303735;
+      --flights: #7fa8e8; --lodging: #e5a465; --daily: #a8c464;
+      --fit-bg: #133a33; --fit-ink: #9fe6d6; --stretch-bg: #3b2a12; --stretch-ink: #f6c98a;
+      --warn-bg: #362b13; --warn-ink: #f2d38c; --info-bg: #172638; --info-ink: #b5cdf0;
+      --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 30%);
     }
   }
+
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { max-width: 900px; margin: 0 auto; padding: 20px 16px 48px; }
-  .proto { background: var(--proto-bg); color: var(--proto-ink); border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-bottom: 16px; }
-  h1 { font-size: 24px; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin: 0 0 20px; }
-  form { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; background: var(--card);
-         border: 1px solid var(--line); border-radius: 10px; padding: 14px; align-items: end; }
-  label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
-  input, select, button { font: inherit; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); min-width: 0; }
-  button { background: var(--accent); color: var(--on-accent); border: none; font-weight: 600; cursor: pointer; }
-  #status { color: var(--muted); margin: 16px 2px 8px; font-size: 13px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
-  .head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  .name { font-size: 18px; font-weight: 650; }
-  .meta { color: var(--muted); font-size: 13px; }
-  .total { text-align: right; }
-  .total b { font-size: 22px; }
-  .badge { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--stretch); color: var(--stretch); margin-left: 6px; vertical-align: 2px; }
-  .bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 12px 0 8px; background: var(--line); }
-  .rows { display: grid; grid-template-columns: auto auto 1fr; gap: 2px 12px; font-size: 13px; }
-  .rows .amt { text-align: right; font-variant-numeric: tabular-nums; }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
-  .conf { color: var(--muted); }
-  .note { background: var(--warn-bg); color: var(--warn-ink); border-radius: 6px; padding: 6px 10px; margin-top: 8px; font-size: 13px; }
-  .note a { color: inherit; }
-  .links { margin-top: 10px; font-size: 13px; display: flex; gap: 14px; flex-wrap: wrap; }
-  .links a { color: var(--accent); }
-  footer { color: var(--muted); font-size: 12px; margin-top: 24px; }
-  footer p { margin: 0 0 6px; }
-  @media (max-width: 560px) {
-    .total { text-align: left; }
-    .rows { grid-template-columns: auto auto; }
-    .rows .detail { grid-column: 1 / -1; color: var(--muted); margin-bottom: 4px; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--font-body); }
+  a { color: var(--brand); }
+  :focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; border-radius: 6px; }
+  .wrap { max-width: 1140px; margin: 0 auto; padding: 0 16px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* Prototype strip */
+  .proto { background: var(--ink); color: var(--bg); font-size: 13px; text-align: center; padding: 6px 16px; }
+
+  /* Hero */
+  .hero { position: relative; color: #fff; isolation: isolate; overflow: hidden; background: #0d3b45; }
+  .hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
+  .hero::after { content: ""; position: absolute; inset: 0; z-index: -1;
+    background: linear-gradient(180deg, rgb(5 25 30 / 55%) 0%, rgb(5 25 30 / 25%) 40%, rgb(5 25 30 / 70%) 100%); }
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding-top: 16px; }
+  .logo { font: 800 18px/1 var(--font-display); letter-spacing: -0.01em; color: #fff; text-decoration: none; display: flex; gap: 8px; align-items: center; }
+  .logo svg { flex: none; }
+  .hero-copy { padding: 48px 0 124px; max-width: 720px; }
+  .eyebrow { font-weight: 600; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; opacity: .92; margin: 0 0 10px; }
+  h1 { font: 800 clamp(34px, 7vw, 60px)/1.05 var(--font-display); letter-spacing: -0.02em; margin: 0 0 14px; text-shadow: 0 2px 18px rgb(0 0 0 / 30%); }
+  h1 .amt { color: #ffd38f; white-space: nowrap; }
+  .hero-sub { font-size: clamp(16px, 2.4vw, 19px); margin: 0; max-width: 560px; text-shadow: 0 1px 10px rgb(0 0 0 / 35%); }
+  .hero-credit { position: absolute; right: 16px; left: 16px; bottom: 92px; margin: 0; text-align: right; font-size: 11px; color: rgb(255 255 255 / 85%); }
+  .hero-credit a { color: inherit; }
+
+  /* Search panel */
+  .search { position: relative; margin-top: -84px; z-index: 2; }
+  form { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px;
+         display: grid; gap: 12px; grid-template-columns: repeat(6, minmax(0, 1fr)); border: 1px solid var(--line); }
+  form > .field { grid-column: span 2; }
+  form > .field.wide { grid-column: span 3; }
+  .field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .field.budget { grid-column: 1 / -1; }
+  .money { position: relative; }
+  .money span { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font: 700 22px var(--font-display); color: var(--ink); }
+  input, select { font: 500 16px var(--font-body); color: var(--ink); background: var(--surface-2); border: 1px solid var(--line);
+                  border-radius: 12px; padding: 11px 12px; min-width: 0; width: 100%; }
+  .money input { font: 700 24px var(--font-display); padding: 10px 12px 10px 34px; }
+  input:focus, select:focus { border-color: var(--brand); }
+  .go { grid-column: 1 / -1; font: 700 17px var(--font-display); background: var(--brand); color: var(--on-brand); border: 0;
+        border-radius: 12px; padding: 14px 18px; cursor: pointer; }
+  .go:hover { background: var(--brand-strong); }
+  @media (min-width: 760px) {
+    form { grid-template-columns: 1.6fr repeat(5, minmax(0, 1fr)) auto; align-items: end; padding: 18px; }
+    form > .field, form > .field.wide, .field.budget { grid-column: auto; }
+    .go { grid-column: auto; height: 50px; }
   }
+  .sortrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 28px 0 14px; }
+  #status { margin: 0; font: 700 clamp(20px, 3vw, 26px)/1.2 var(--font-display); letter-spacing: -0.01em; }
+  #status small { display: block; font: 400 14px var(--font-body); color: var(--muted); margin-top: 4px; }
+  .sortrow label { font-size: 14px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+  .sortrow select { width: auto; padding: 8px 10px; }
+
+  /* Results */
+  #results { display: grid; gap: 20px; grid-template-columns: 1fr; }
+  @media (min-width: 760px) { #results { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1100px) { #results { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+          display: flex; flex-direction: column; border: 1px solid var(--line); }
+  .photo { position: relative; aspect-ratio: 16 / 10; background: linear-gradient(135deg, #1f6f78, #f4a03a); margin: 0; }
+  .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgb(0 0 0 / 65%)); pointer-events: none; }
+  .place { position: absolute; left: 16px; right: 16px; bottom: 24px; z-index: 1; color: #fff; }
+  .place h2 { margin: 0; font: 800 26px/1.1 var(--font-display); letter-spacing: -0.01em; text-shadow: 0 1px 8px rgb(0 0 0 / 40%); }
+  .place p { margin: 2px 0 0; font-size: 14px; text-shadow: 0 1px 6px rgb(0 0 0 / 50%); }
+  .fit { position: absolute; top: 12px; left: 12px; z-index: 1; font-size: 13px; font-weight: 700; padding: 5px 10px; border-radius: 999px; }
+  .fit.within { background: var(--fit-bg); color: var(--fit-ink); }
+  .fit.stretch { background: var(--stretch-bg); color: var(--stretch-ink); }
+  .credit { position: absolute; left: 16px; right: 10px; bottom: 5px; z-index: 1; font-size: 10.5px; line-height: 1.3; text-align: right;
+            color: rgb(255 255 255 / 88%); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .credit a { color: inherit; }
+
+  .body { padding: 16px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
+  .when { display: flex; flex-wrap: wrap; gap: 6px; font-size: 14px; }
+  .pill { background: var(--surface-2); border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+  .price { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+  .price .big { font: 800 34px/1 var(--font-display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .price .lbl { font-size: 13px; color: var(--muted); }
+  .price .pp { text-align: right; font-size: 14px; }
+  .price .pp b { font-size: 18px; font-variant-numeric: tabular-nums; }
+  .left { font-size: 14px; margin-top: -6px; }
+  .left.within { color: var(--fit-ink); } .left.stretch { color: var(--stretch-ink); }
+  @media (prefers-color-scheme: dark) { .left.within { color: var(--brand); } }
+
+  .meter { position: relative; height: 34px; margin: 2px 0 0; }
+  .meter .track { position: absolute; left: 0; right: 0; top: 10px; height: 8px; border-radius: 4px; background: var(--surface-2); }
+  .meter .band { position: absolute; top: 10px; height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--brand) 45%, transparent); }
+  .meter .exp { position: absolute; top: 5px; width: 4px; height: 18px; margin-left: -2px; border-radius: 2px; background: var(--brand); }
+  .meter .budget { position: absolute; top: 2px; height: 24px; border-left: 2px dashed var(--ink); }
+  .meter .budget span { position: absolute; top: 22px; transform: translateX(-50%); font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+  .incl h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 6px; }
+  .stack { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--line); margin-bottom: 8px; }
+  .rows { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+  .rows li { display: grid; grid-template-columns: 12px 1fr auto; gap: 2px 10px; align-items: baseline; font-size: 14px; }
+  .rows .dot { width: 10px; height: 10px; border-radius: 3px; align-self: center; }
+  .rows .what b { font-weight: 650; }
+  .rows .what span { color: var(--muted); }
+  .rows .amt { font-weight: 650; font-variant-numeric: tabular-nums; }
+  .rows .conf { grid-column: 2 / -1; font-size: 12px; color: var(--muted); }
+  .rows .conf i { font-style: normal; border: 1px solid var(--line); border-radius: 6px; padding: 0 5px; margin-right: 6px; }
+  details { font-size: 13px; color: var(--muted); }
+  summary { cursor: pointer; color: var(--brand); font-weight: 600; }
+  details ul { margin: 6px 0 0; padding-left: 18px; }
+
+  .notes { display: grid; gap: 6px; }
+  .note { border-radius: 10px; padding: 8px 10px; font-size: 13px; display: flex; gap: 8px; }
+  .note.adv { background: var(--warn-bg); color: var(--warn-ink); }
+  .note.kbyg { background: var(--info-bg); color: var(--info-ink); }
+  .note a { color: inherit; font-weight: 600; }
+  .note svg { flex: none; margin-top: 2px; }
+
+  .ctas { margin-top: auto; display: grid; gap: 8px; grid-template-columns: 1fr 1fr; }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center; text-decoration: none;
+         font: 700 15px/1.2 var(--font-display); border-radius: 12px; padding: 12px 10px; min-height: 48px; }
+  .btn.primary { background: var(--brand); color: var(--on-brand); }
+  .btn.primary:hover { background: var(--brand-strong); }
+  .btn.secondary { border: 2px solid var(--brand); color: var(--brand); }
+  .btn.secondary:hover { background: var(--surface-2); }
+  .fine { font-size: 12px; color: var(--muted); margin: -4px 0 0; }
+
+  .empty { grid-column: 1 / -1; background: var(--surface); border-radius: var(--radius); padding: 28px; text-align: center; border: 1px solid var(--line); }
+
+  /* How it works + footer */
+  .how { display: grid; gap: 16px; margin: 48px 0 0; grid-template-columns: 1fr; }
+  @media (min-width: 760px) { .how { grid-template-columns: repeat(3, 1fr); } }
+  .how div { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+  .how h3 { margin: 0 0 4px; font: 700 18px var(--font-display); }
+  .how p { margin: 0; color: var(--muted); font-size: 14px; }
+  .how .n { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--fit-bg); color: var(--fit-ink); font-weight: 800; margin-bottom: 8px; }
+  footer { color: var(--muted); font-size: 13px; padding: 32px 0 48px; }
+  footer p { margin: 0 0 8px; max-width: 760px; }
+  footer strong { color: var(--ink); }
 </style>
 </head>
 <body>
-<main>
-  <div class="proto">Prototype for testing. Prices are estimates from cached fares and sampled hotel rates, not quotes.</div>
-  <h1>Budget Trip Finder</h1>
-  <p class="sub">Tell us your total budget. We find whole trips from Toronto that fit: flights, hotel and daily spending, in CAD.</p>
+<div class="proto" role="note">Prototype for testing. Prices are estimates from cached fares and sampled hotel rates, not quotes.</div>
 
-  <form id="f">
-    <label>Total budget (CAD)<input name="budget" type="number" min="100" step="50" value="3000" required></label>
-    <label>Adults<input name="adults" type="number" min="1" max="9" value="2"></label>
-    <label>Children<input name="children" type="number" min="0" max="9" value="0"></label>
-    <label>Month<select name="month"><option value="">Any</option></select></label>
-    <label>Nights<input name="nights" type="number" min="1" max="30" placeholder="Longest that fits"></label>
-    <label>Comfort<select name="tier"><option value="budget">Budget (up to 3★)</option><option value="mid" selected>Mid (4★)</option><option value="upscale">Upscale (5★)</option></select></label>
-    <label>Sort<select name="sort"><option value="cheapest">Cheapest</option><option value="most_nights">Most nights</option></select></label>
-    <button type="submit">Find trips</button>
-  </form>
+<header class="hero">
+  <img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/2023_-_Playa_Bavaro_Punta_Cana_-_08.jpg/1920px-2023_-_Playa_Bavaro_Punta_Cana_-_08.jpg"
+       srcset="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/2023_-_Playa_Bavaro_Punta_Cana_-_08.jpg/960px-2023_-_Playa_Bavaro_Punta_Cana_-_08.jpg 960w,
+               https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/2023_-_Playa_Bavaro_Punta_Cana_-_08.jpg/1920px-2023_-_Playa_Bavaro_Punta_Cana_-_08.jpg 1920w"
+       sizes="100vw" alt="" fetchpriority="high">
+  <div class="wrap">
+    <div class="topbar">
+      <a class="logo" href="./" aria-label="Budget Trip Finder home">
+        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="#f4a03a"/><path d="M6 17c3-1 5-4 8-4s5 3 8 4" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/><circle cx="14" cy="9" r="2.6" fill="#fff"/></svg>
+        <span class="brand-name">Budget Trip Finder</span>
+      </a>
+    </div>
+    <div class="hero-copy">
+      <p class="eyebrow">Whole trips from Toronto</p>
+      <h1>Where can <span class="amt" id="heroAmt">$3,000</span> take you?</h1>
+      <p class="hero-sub">Give us one number for the whole trip. We price flights, a hotel and daily spending for every destination, then show you what fits.</p>
+    </div>
+  </div>
+  <p class="hero-credit">Photo: Bávaro beach, Punta Cana, by Oleg Yunakov, <a href="https://commons.wikimedia.org/wiki/File:2023_-_Playa_Bavaro_Punta_Cana_-_08.jpg" target="_blank" rel="noopener">CC BY-SA 4.0</a></p>
+</header>
 
-  <div id="status">Loading trip data…</div>
+<main class="wrap">
+  <section class="search" aria-label="Trip search">
+    <form id="f">
+      <label class="field budget">Total budget (CAD)
+        <span class="money"><span aria-hidden="true">$</span><input name="budget" type="number" inputmode="numeric" min="100" step="50" value="3000" required></span>
+      </label>
+      <label class="field">Adults<input name="adults" type="number" inputmode="numeric" min="1" max="9" value="2"></label>
+      <label class="field">Children<input name="children" type="number" inputmode="numeric" min="0" max="9" value="0"></label>
+      <label class="field">Nights<input name="nights" type="number" inputmode="numeric" min="1" max="30" placeholder="Longest"></label>
+      <label class="field wide">Month<select name="month"><option value="">Any month</option></select></label>
+      <label class="field wide">Comfort<select name="tier"><option value="budget">Budget (up to 3★)</option><option value="mid" selected>Mid (4★)</option><option value="upscale">Upscale (5★)</option></select></label>
+      <button class="go" type="submit">Find trips</button>
+    </form>
+  </section>
+
+  <div class="sortrow">
+    <h2 id="status" aria-live="polite">Loading trip data…</h2>
+    <label>Sort by <select name="sort" form="f"><option value="most_nights" selected>Most nights</option><option value="cheapest">Cheapest first</option></select></label>
+  </div>
   <div id="results"></div>
+
+  <section class="how" aria-label="How it works">
+    <div><span class="n">1</span><h3>One budget, whole trip</h3><p>Flights for everyone, a hotel for every night and money for food and getting around, added up in Canadian dollars.</p></div>
+    <div><span class="n">2</span><h3>Honest ranges</h3><p>Every total shows a low, expected and high estimate, with a label saying how fresh each number is.</p></div>
+    <div><span class="n">3</span><h3>Compare, then go to the partner</h3><p>We don't sell trips. Each card links to a partner site where you check live prices and book directly with them.</p></div>
+  </section>
 
   <footer>
     <p id="fresh"></p>
-    <p>Confirm prices on the partner site before booking. Links may be affiliate links.</p>
+    <p><strong>Prices are estimates, not quotes.</strong> Confirm prices on the partner site before booking. Links may be affiliate links: we may earn a commission at no extra cost to you.</p>
     <p>Daily costs are scaled with World Bank price levels (CC BY 4.0). Travel advice from the Government of Canada (travel.gc.ca); always check the official page before you go.</p>
+    <p>Destination photos from Wikimedia Commons; the photographer and licence are credited on each photo.</p>
   </footer>
 </main>
+
 <script type="module">
-import { hotelLinkFor, prepare, search } from "./engine.js";
+import { prepare, roomsNeeded, search } from "./engine.js";
+import { PHOTOS } from "./photos.js";
 
 const f = document.getElementById("f");
 const out = document.getElementById("results");
 const status = document.getElementById("status");
+const heroAmt = document.getElementById("heroAmt");
 const fmt = (n) => Math.round(n).toLocaleString("en-CA");
+const money = (n) => `$${fmt(n)}`;
 const colors = { flights: "var(--flights)", lodging: "var(--lodging)", daily: "var(--daily)" };
 const today = new Date().toISOString().slice(0, 10);
+const regionName = new Intl.DisplayNames(["en-CA"], { type: "region" });
+const country = (cc) => { try { return regionName.of(cc); } catch { return cc; } };
+const day = (s) => new Date(s + "T00:00:00Z").toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+const monthName = (m) => new Date(m + "-01T00:00:00Z").toLocaleDateString("en-CA", { month: "long", year: "numeric", timeZone: "UTC" });
 
 function el(tag, attrs = {}, ...kids) {
   const e = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) k === "class" ? (e.className = v) : e.setAttribute(k, v);
-  for (const k of kids) e.append(k instanceof Node ? k : document.createTextNode(k));
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null) continue;
+    if (k === "class") e.className = v; else e.setAttribute(k, v);
+  }
+  for (const k of kids) if (k != null) e.append(k instanceof Node ? k : document.createTextNode(k));
   return e;
+}
+const icon = (path) => {
+  const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  s.setAttribute("width", "16"); s.setAttribute("height", "16"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("aria-hidden", "true");
+  s.innerHTML = `<path d="${path}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  return s;
+};
+const ICON_WARN = "M12 3 2 21h20L12 3zm0 7v5m0 3v.01";
+const ICON_INFO = "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zm0-11v6m0-9v.01";
+
+function hotelLink(p, req) {
+  const q = new URLSearchParams({
+    ss: p.dest.name, checkin: p.fare.depart, checkout: p.fare.ret,
+    group_adults: req.adults, group_children: req.children, no_rooms: roomsNeeded(req.adults, req.children),
+  });
+  return "https://www.booking.com/searchresults.html?" + q;
+}
+
+// Turn the engine's confidence label into plain words; the raw label stays in the tooltip.
+function confText(c) {
+  let m;
+  if ((m = c.match(/^cached \((\d+)d\)$/))) return `Cached fare, ${m[1]} day${m[1] === "1" ? "" : "s"} old`;
+  if ((m = c.match(/^sampled \((\d+)d\)$/))) return `Sampled hotel rates, ${m[1]} day${m[1] === "1" ? "" : "s"} old`;
+  if (c === "live") return "Live price";
+  if (c === "estimated") return "Estimate";
+  return c;
+}
+
+const LABELS = {
+  flights: (p, req, t) => ["Flights", `round trip for ${t}`],
+  lodging: (p, req) => ["Hotel", `${p.nights} nights, ${roomsNeeded(req.adults, req.children)} room${roomsNeeded(req.adults, req.children) > 1 ? "s" : ""}`],
+  daily: (p) => ["Daily spending", `food, local transport, extras for ${p.nights + 1} days`],
+};
+
+function meter(p, budget) {
+  // Visual only: the same numbers are written out in text beside it.
+  const lo = Math.min(p.total.low, budget) * 0.85;
+  const hi = Math.max(p.total.high, budget) * 1.04;
+  const pos = (v) => `${((v - lo) / (hi - lo)) * 100}%`;
+  const m = el("div", { class: "meter", "aria-hidden": "true" });
+  m.append(
+    el("span", { class: "track" }),
+    el("span", { class: "band", style: `left:${pos(p.total.low)};width:calc(${pos(p.total.high)} - ${pos(p.total.low)})` }),
+    el("span", { class: "exp", style: `left:${pos(p.total.expected)}` }),
+    el("span", { class: "budget", style: `left:${pos(budget)}` }, el("span", {}, "your budget")),
+  );
+  return m;
 }
 
 function card(p, req, data) {
-  const c = el("div", { class: "card" });
   const travellers = req.adults + req.children;
-  const title = el("div", { class: "name" }, p.dest.name, el("span", { class: "meta" }, `  ${p.dest.country}`));
-  if (p.fit === "stretch") title.append(el("span", { class: "badge", title: "Fits only if prices land at the low end" }, "stretch"));
-  const left = el("div", {}, title, el("div", { class: "meta" }, `${p.nights} nights · ${p.fare.depart} → ${p.fare.ret}`));
-  const right = el("div", { class: "total" }, el("b", {}, `$${fmt(p.total.expected)}`),
-    el("div", { class: "meta" }, `range $${fmt(p.total.low)}–$${fmt(p.total.high)} · $${fmt(p.total.expected / travellers)} pp`));
-  c.append(el("div", { class: "head" }, left, right));
+  const who = [`${req.adults} adult${req.adults > 1 ? "s" : ""}`, req.children ? `${req.children} child${req.children > 1 ? "ren" : ""}` : null].filter(Boolean).join(", ");
+  const ph = PHOTOS[p.dest.code];
+  const c = el("article", { class: "card", "aria-labelledby": `t-${p.dest.code}` });
 
-  const bar = el("div", { class: "bar" });
-  const rows = el("div", { class: "rows" });
-  for (const comp of p.components) {
-    bar.append(el("span", { style: `flex:${comp.expected};background:${colors[comp.name]}` }));
-    rows.append(
-      el("span", {}, el("span", { class: "dot", style: `background:${colors[comp.name]}` }), comp.name),
-      el("span", { class: "amt" }, `$${fmt(comp.expected)}`),
-      el("span", { class: "detail" }, el("span", { class: "conf" }, `[${comp.confidence}] `), comp.detail),
-    );
+  // Photo with place name, fit badge and credit
+  const fig = el("figure", { class: "photo" });
+  if (ph) {
+    const img = el("img", { src: ph.src, alt: ph.alt, loading: "lazy", decoding: "async", width: "960", height: "600" });
+    img.addEventListener("error", () => img.remove());
+    fig.append(img, el("figcaption", { class: "credit", title: `Photo: ${ph.author}, ${ph.license}, via Wikimedia Commons` }, "Photo: ", ph.author, ", ",
+      el("a", { href: ph.page, target: "_blank", rel: "noopener" }, ph.license)));
   }
-  c.append(bar, rows);
+  fig.append(
+    el("span", { class: `fit ${p.fit}`, title: p.fit === "stretch" ? "Fits only if prices land at the low end" : null },
+      p.fit === "within" ? "✓ Fits your budget" : "Stretch"),
+    el("div", { class: "place" }, el("h2", { id: `t-${p.dest.code}` }, p.dest.name),
+      el("p", {}, [country(p.dest.country), ph?.tagline].filter(Boolean).join(" · "))),
+  );
+  c.append(fig);
 
+  const b = el("div", { class: "body" });
+  b.append(el("div", { class: "when" },
+    el("span", { class: "pill" }, `${p.nights} nights`),
+    el("span", { class: "pill" }, `${day(p.fare.depart)} → ${day(p.fare.ret)}`),
+    el("span", { class: "pill" }, who),
+  ));
+
+  b.append(el("div", { class: "price" },
+    el("div", {}, el("div", { class: "lbl" }, "Estimated total"), el("div", { class: "big" }, money(p.total.expected)),
+      el("div", { class: "lbl" }, `likely ${money(p.total.low)} – ${money(p.total.high)}`)),
+    el("div", { class: "pp" }, el("b", {}, money(p.total.expected / travellers)), el("div", { class: "lbl" }, "per person")),
+  ));
+  const diff = req.budget - p.total.expected;
+  b.append(el("div", { class: `left ${p.fit}` }, p.fit === "within"
+    ? `About ${money(diff)} under your ${money(req.budget)} budget at the expected price.`
+    : `About ${money(-diff)} over at the expected price; fits only if prices land near the low end.`));
+  b.append(meter(p, req.budget));
+
+  // What's included
+  const incl = el("section", { class: "incl" }, el("h3", {}, "What's included"));
+  const stack = el("div", { class: "stack", "aria-hidden": "true" });
+  const rows = el("ul", { class: "rows" });
+  const how = el("ul");
+  for (const comp of p.components) {
+    const [name, sub] = (LABELS[comp.name] || (() => [comp.name, ""]))(p, req, who);
+    stack.append(el("span", { style: `flex:${comp.expected};background:${colors[comp.name]}` }));
+    rows.append(el("li", {},
+      el("span", { class: "dot", style: `background:${colors[comp.name]}` }),
+      el("span", { class: "what" }, el("b", {}, name), " ", el("span", {}, sub)),
+      el("span", { class: "amt" }, money(comp.expected)),
+      el("span", { class: "conf" }, el("i", { title: `Confidence: ${comp.confidence}` }, confText(comp.confidence)),
+        `${money(comp.low)} – ${money(comp.high)}`),
+    ));
+    how.append(el("li", {}, `${name}: ${comp.detail}`));
+  }
+  incl.append(stack, rows, el("details", {}, el("summary", {}, "How we estimated this"), how));
+  b.append(incl);
+
+  // Advisory and know-before-you-go
+  const notes = el("div", { class: "notes" });
   const adv = data.advisories[p.dest.country];
   if (adv && adv.level > 0) {
-    c.append(el("div", { class: "note" }, "Travel advice: ", el("a", { href: adv.url, target: "_blank", rel: "noopener" }, adv.text)));
+    notes.append(el("div", { class: "note adv" }, icon(ICON_WARN),
+      el("span", {}, "Travel advice: ", el("a", { href: adv.url, target: "_blank", rel: "noopener" }, adv.text))));
   }
   for (const n of data.notes[p.dest.country] || []) {
-    c.append(el("div", { class: "note" }, `Know before you go (${n.category}): ${n.summary} `,
-      el("a", { href: n.source_url, target: "_blank", rel: "noopener" }, "Source")));
+    notes.append(el("div", { class: "note kbyg" }, icon(ICON_INFO),
+      el("span", {}, el("b", {}, `Know before you go (${n.category}): `), `${n.summary} `,
+        el("a", { href: n.source_url, target: "_blank", rel: "noopener" }, "Source"))));
   }
-  const links = el("div", { class: "links" });
-  if (p.fare.link) links.append(el("a", { href: p.fare.link, target: "_blank", rel: "noopener sponsored" }, "Check flights on Aviasales →"));
-  const hotel = hotelLinkFor(p.dest, p.fare, req);
-  if (hotel) links.append(el("a", { href: hotel.url, target: "_blank", rel: "noopener sponsored" }, `Check hotels on ${hotel.partner} →`));
-  c.append(links);
+  if (notes.childElementCount) b.append(notes);
+
+  // Outbound partner links (we refer, we don't sell)
+  const ctas = el("div", { class: "ctas" });
+  if (p.fare.link) ctas.append(el("a", { class: "btn primary", href: p.fare.link, target: "_blank", rel: "noopener sponsored" }, "See flights on Aviasales ↗"));
+  ctas.append(el("a", { class: `btn ${p.fare.link ? "secondary" : "primary"}`, href: hotelLink(p, req), target: "_blank", rel: "noopener" }, "See hotels on Booking.com ↗"));
+  if (!p.fare.link) ctas.style.gridTemplateColumns = "1fr";
+  b.append(ctas, el("p", { class: "fine" }, "Prices are estimates. Opens the partner site, where you check live prices and book. May be an affiliate link."));
+
+  c.append(b);
   return c;
 }
 
 const data = await (await fetch("./data.json", { cache: "no-cache" })).json();
 const dests = prepare(data, today);
 const months = [...new Set(dests.flatMap((d) => d.fares.map((f) => f.month)))].sort();
-for (const m of months) f.elements.month.append(el("option", { value: m }, m));
+for (const m of months) f.elements.month.append(el("option", { value: m }, monthName(m)));
 document.getElementById("fresh").textContent =
   `Trip data updated ${data.generatedAt.slice(0, 10)} · ${dests.length} destinations from Toronto.`;
+
+const sortSel = document.querySelector('select[name="sort"]');
+function updateHero() {
+  const v = Number(f.elements.budget.value);
+  heroAmt.textContent = v > 0 ? money(v) : "your budget";
+}
 
 function run(e) {
   if (e) e.preventDefault();
@@ -150,23 +411,32 @@ function run(e) {
   const num = (k) => (fd.get(k) === "" ? null : Number(fd.get(k)));
   const req = {
     budget: num("budget"), adults: num("adults") ?? 1, children: num("children") ?? 0,
-    month: fd.get("month") || null, nights: num("nights"), tier: fd.get("tier"), sort: fd.get("sort"),
+    month: fd.get("month") || null, nights: num("nights"), tier: fd.get("tier"), sort: sortSel.value,
   };
-  const t = performance.now();
+  updateHero();
   let results;
   try {
     results = search(dests, req, today, data.constants).slice(0, 15);
   } catch (err) {
     status.textContent = err.message;
+    out.replaceChildren();
     return;
   }
   out.replaceChildren(...results.map((p) => card(p, req, data)));
   const within = results.filter((p) => p.fit === "within").length;
-  status.textContent = results.length
-    ? `${within} trips fit, ${results.length - within} stretch · ${Math.round(performance.now() - t)} ms`
-    : "Nothing fits this budget. Try fewer nights, a lower comfort level, or a bigger budget.";
+  if (!results.length) {
+    status.replaceChildren("Nothing fits this budget yet", el("small", {}, "Try fewer nights, a lower comfort level, or a bigger budget."));
+    out.append(el("div", { class: "empty" }, "No whole trip fits ", money(req.budget), " with these settings."));
+    return;
+  }
+  status.replaceChildren(
+    `${within} trip${within === 1 ? "" : "s"} fit ${money(req.budget)}`,
+    el("small", {}, `${results.length - within} more are a stretch · ${req.month ? monthName(req.month) : "any month"} · estimates in CAD, confirm on the partner site`),
+  );
 }
 f.addEventListener("submit", run);
+f.elements.budget.addEventListener("input", updateHero);
+sortSel.addEventListener("change", () => run());
 run();
 </script>
 </body>
