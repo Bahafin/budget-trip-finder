@@ -84,11 +84,16 @@ Done when the live site refreshes itself daily, links are tracked, and the 3-tri
 Needs the LiteAPI **production** key, so hotel prices are real rather than sandbox.
 
 - [x] **2.1 Test set** (2026-11-26: `tripfinder gate-a generate` → `docs/gate-a/sheet.csv`). A script picks 50 trips: a mix of destinations, 1-4 travellers, 3-10 nights, dates 1-4 months out, including a few holiday dates.
-- [ ] **2.2 Real prices** (10 of 50 checked 2026-11-26; `python -m tripfinder.gate_a_fill` records them; `tripfinder gate-a report` → `docs/gate-a/report.md`). For each trip, record the real flight price (Google Flights) and hotel price (Booking.com or Expedia, same tier):
+- [x] **2.2 Real prices** (all 50 checked 2026-11-26 in the browser; `python -m tripfinder.gate_a_fill` records them; `tripfinder gate-a report` → `docs/gate-a/report.md`). For each trip, record the real flight price (Google Flights) and hotel price (Booking.com or Expedia, same tier):
   - I do this through the browser where sites allow it.
   - Tester feedback fills in the rest.
 - [ ] **2.3 Daily spend check.** Compare our daily figures with published per-city daily budgets, then adjust the baseline.
-- [ ] **2.4 Report.** Median and 90th-percentile error per component and in total.
+- [x] **2.4 Report** (2026-11-26, sandbox hotel prices): **PASS**. Median absolute total error 11% (90th pct 32%), real total inside our range on 44 of 50 trips; holiday trips 9%.
+  - Flights: median error +1%, so the 1.10 uplift stays (the +12% on the first 10 trips was a small sample).
+  - Hotels are the weak part: median -8%, upscale tier -14%. Two Orlando trips (5-star, 2 rooms) and two Caribbean resort trips came out far too high (+68% to +479%); the sandbox price for big resort rooms looks unreliable. Re-run with the LiteAPI production key before quoting the number.
+  - Big flight misses: New York Dec 4-6 (cache fare too low, -66%) and Bali over New Year (-36%).
+  - Method notes: Booking.com searched as Guanacaste for Liberia and as Bali for Denpasar; Frankfurt 5-star resolved to the airport area; Edmonton has a single 5-star hotel.
+- [ ] **2.4b** Re-run the 50 trips once the production key is in, and look at the six trips over 25% total error.
   - Pass: median total error within about 20-25%.
   - Fail: fix the weakest component and re-run.
 
