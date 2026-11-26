@@ -28,6 +28,8 @@ from string import Template
 from typing import Any
 from urllib.parse import urlencode
 
+from .assets import slugify
+
 from .config import ROOT
 from .engine import (
     CHILD_DAILY_SHARE,
@@ -522,7 +524,7 @@ class Builder:
         return out
 
     def dest_path(self, d: DestinationData) -> str:
-        return f"{ORIGIN_SLUG}/{SLUGS.get(d.code, d.code.lower())}/"
+        return f"{ORIGIN_SLUG}/{SLUGS.get(d.code) or slugify(d.name) or d.code.lower()}/"
 
     def dest_month_path(self, d: DestinationData, month: str) -> str:
         return f"{self.dest_path(d)}{month_slug(month)}/"

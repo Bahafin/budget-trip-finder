@@ -79,7 +79,11 @@ Goal: testers see fresh, accurate-looking trips, and every click can earn.
 - [x] **1.6 Quick wins from research** (2026-11-26; docs/research/feature-ideas.md #5, #8, #9, #10):
   - "Best for" theme chips on the finder and a best-for / what-to-do line on each card (hand-written, data/seed/themes.csv).
   - Mexico City added through data/seed/always_include.csv; when that list changes the daily run adds the new place to the current list (no re-ranking). Hamilton checked and parked (too few cached fares).
-- [ ] **1.7 Keep the destination list stable.** The monthly re-selection ranks by fare count, and on 2026-11-26 a test re-selection swapped 7 of 25 places (Tokyo, Chicago, Dallas, Hong Kong, Honolulu, Kingston and Panama City out; Delhi, Miami, Nha Trang, San José, Warsaw and Ottawa in). The pages, themes, photos and Gate A trips are built around the current list. Before the next scheduled selection (about 2026-12-25): keep places that still have fares, and only fill gaps; new places need a theme row, a photo and a page address.
+- [x] **1.7 Keep the destination list stable** (2026-11-26). A test re-selection had swapped 7 of 25 places on noisy bulk fare counts (1-18 per place). Now:
+  - Selection is sticky: a place stays while our own daily per-place refresh still finds at least 5 fares (lowest today: 7); only gaps are filled from the bulk ranking. On today's counts nothing changes.
+  - New places get a page address from their name, and `tripfinder assets --fill-photos` finds a real, credited Wikimedia Commons photo (reusable licences only, wide and large, marked for review). The daily workflow runs it, so a new place deploys with a photo, and lists missing theme rows with a ready-made request in the run summary.
+  - Photos are never AI-generated: a made-up picture of a real place would undercut the honest-numbers promise. AI image skills are for marketing graphics later.
+  - Theme rows are short text (no prices), written by a person or an AI session and checked by test_themes.py. Writing them inside the workflow would need an Anthropic API key secret (owner's call).
   - "Doesn't fit, but close": places within max($300, 15%) over the budget, with a link that re-runs the search at that amount.
   - The Gate A result (median whole-trip error 11% on 50 trips) is in "How it works".
   - Hotel bands are rebuilt on every refresh (no API cost), so band rule changes reach the site the next day.

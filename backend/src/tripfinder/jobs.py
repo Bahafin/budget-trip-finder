@@ -78,9 +78,29 @@ def add_extras(conn: sqlite3.Connection, s: Settings) -> list[str]:
     return added
 
 
+KEEP_MIN_FARES = 5  # a selected place stays while our own per-place fare refresh still finds this many fares
+
+
+def choose_destinations(counts: Counter[str], eligible: set[str], current: list[str], extras: list[str], n: int,
+                        stored: dict[str, int] | None = None, keep_min: int = KEEP_MIN_FARES) -> list[str]:
+    """Sticky selection. Places already on the list stay while they still have enough fares in our own table
+    (`stored`, from the daily per-place refresh; the bulk counts in `counts` are small and noisy day to day,
+    and each place carries pages, themes, a photo and Gate A trips). Only the gaps are filled from the bulk
+    fare-count ranking. Hand-picked places are added on top."""
+    have = stored if stored is not None else counts
+    keep = [c for c in current if c not in extras and c in eligible and have.get(c, 0) >= keep_min][:n]
+    for code, _ in counts.most_common():
+        if len(keep) >= n:
+            break
+        if code in eligible and code not in keep and code not in extras:
+            keep.append(code)
+    return keep + [c for c in extras if c in eligible and counts[c] > 0 and c not in keep]
+
+
 def select_destinations(conn: sqlite3.Connection, s: Settings) -> list[str]:
-    """Pick the launch destinations: the ones with the most cached fares from the origin, plus the hand-picked
-    ones in always_include.csv (if they have fares and aren't under an advisory)."""
+    """Pick the destinations: keep the current ones that still have fares, fill gaps with the places that have
+    the most cached fares from the origin, and add the hand-picked ones in always_include.csv (all only if they
+    aren't under an advisory)."""
     meter = Meter(conn, "select")
     counts: Counter[str] = Counter()
     for month in upcoming_months(s.months_ahead):
@@ -90,25 +110,21 @@ def select_destinations(conn: sqlite3.Connection, s: Settings) -> list[str]:
     blocked = {r["country_code"] for r in conn.execute("SELECT country_code FROM advisories WHERE level >= 2")}
     if not blocked:
         raise RuntimeError("no advisories loaded: run `refresh reference` before `select`")
-    chosen: list[str] = []
+    eligible = {
+        code for code in counts
+        if (c := cities.get(code)) and c.get("coordinates") and code != s.origin and c["country_code"] not in blocked
+    }
+    current = [r[0] for r in conn.execute("SELECT code FROM destinations WHERE selected = 1 ORDER BY fares_seen DESC")]
+    stored = dict(conn.execute("SELECT destination, COUNT(*) FROM fares WHERE depart >= ? GROUP BY destination", (date.today().isoformat(),)).fetchall())
+    eligible |= {c for c in current if (x := cities.get(c)) and x.get("coordinates") and x["country_code"] not in blocked}
+    chosen = choose_destinations(counts, eligible, current, always_include(s), s.destinations, stored)
     conn.execute("UPDATE destinations SET selected = 0")
-    for code, n in counts.most_common():
-        c = cities.get(code)
-        if not c or not c.get("coordinates") or code == s.origin or c["country_code"] in blocked:
-            continue
+    for code in eligible:
+        c = cities[code]
         conn.execute(
             "INSERT OR REPLACE INTO destinations VALUES (?,?,?,?,?,?,?)",
-            (code, c["name"], c["country_code"], c["coordinates"]["lat"], c["coordinates"]["lon"], n, int(len(chosen) < s.destinations)),
+            (code, c["name"], c["country_code"], c["coordinates"]["lat"], c["coordinates"]["lon"], counts[code], int(code in chosen)),
         )
-        if len(chosen) < s.destinations:
-            chosen.append(code)
-    for code in always_include(s):
-        if code in chosen or code not in counts:
-            continue
-        c = cities.get(code)
-        if c and c.get("coordinates") and c["country_code"] not in blocked:
-            conn.execute("UPDATE destinations SET selected = 1 WHERE code = ?", (code,))
-            chosen.append(code)
     # Remember which hand-picked list this selection used, so a changed list triggers a new selection.
     conn.execute("INSERT OR REPLACE INTO meta VALUES ('always_include', ?)", (",".join(sorted(always_include(s))),))
     conn.commit()

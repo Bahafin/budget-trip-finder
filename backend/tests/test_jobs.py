@@ -101,3 +101,23 @@ def test_changed_hand_picked_list_makes_selection_due(tmp_path):
     assert due["extras"] == "hand-picked destination list changed" and "select" not in due and "hotels" in due
     conn.execute("INSERT OR REPLACE INTO meta VALUES ('always_include', 'MEX')")
     assert due_steps(conn, NOW, extras=["MEX"]) == {}
+
+
+def test_selection_is_sticky():
+    from collections import Counter
+
+    from tripfinder.jobs import choose_destinations
+
+    counts = Counter({"A": 100, "B": 90, "C": 80, "D": 12, "E": 4, "X": 3})
+    eligible = set(counts)
+    # Fresh start: top 3 by fare count.
+    assert choose_destinations(counts, eligible, [], [], 3) == ["A", "B", "C"]
+    # D was already chosen and still has >= 10 fares: it stays even though C now ranks higher.
+    assert choose_destinations(counts, eligible, ["D", "A", "B"], [], 3) == ["D", "A", "B"]
+    # E has dropped under 5 fares, so its slot is refilled from the ranking.
+    assert choose_destinations(counts, eligible, ["E", "A", "B"], [], 3) == ["A", "B", "C"]
+    # Keeping uses our own stored fares when given: D has 1 bulk fare today but 7 stored, so it stays.
+    low = Counter({"A": 100, "B": 90, "C": 80, "D": 1})
+    assert choose_destinations(low, set(low), ["D", "A", "B"], [], 3, stored={"D": 7, "A": 50, "B": 40}) == ["D", "A", "B"]
+    # A place now under an advisory (not eligible) is dropped; hand-picked places are added on top.
+    assert choose_destinations(counts, eligible - {"A"}, ["A", "B", "C"], ["X"], 3) == ["B", "C", "D", "X"]

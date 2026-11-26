@@ -88,6 +88,19 @@ jobs:
           path: var/tripfinder.db
           key: tripdb-${{ github.run_id }}
 
+      - name: Photos and themes for new destinations
+        if: steps.refresh.outputs.have_db == 'true'
+        working-directory: backend
+        run: |
+          # Finds a real, credited Wikimedia Commons photo for any destination without one (for this deploy only;
+          # commit it from a local run after a look). Missing theme rows are listed for a person or AI session.
+          out=$(uv run python -m tripfinder assets --fill-photos)
+          echo "$out"
+          { echo "## Destination assets"; echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          if echo "$out" | grep -qE "^(no photo|no theme row|photos added)"; then
+            echo "::warning::A destination is missing a photo or theme row; see the run summary"
+          fi
+
       - name: Destination and month pages
         working-directory: backend
         run: uv run python -m tripfinder pages

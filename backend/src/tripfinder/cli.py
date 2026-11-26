@@ -54,6 +54,9 @@ def main(argv: list[str] | None = None) -> int:
     ex = sub.add_parser("export", help="write the static site data snapshot (and parity cases for the JS engine)")
     ex.add_argument("--out", default=str(ROOT / "site" / "data.json"))
     ex.add_argument("--golden", default=str(ROOT / "site" / "tests" / "golden.json"))
+    asg = sub.add_parser("assets", help="list destinations missing a photo or theme row; --fill-photos finds photos on Wikimedia Commons")
+    asg.add_argument("--fill-photos", action="store_true")
+    asg.add_argument("--data", default=str(ROOT / "site" / "data.json"))
     pg = sub.add_parser("pages", help="generate the destination and month pages from the site snapshot")
     pg.add_argument("--indexable", action="store_true", help="allow indexing (default: TRIPFINDER_INDEXABLE env var, else noindex)")
     args = ap.parse_args(argv)
@@ -66,6 +69,29 @@ def main(argv: list[str] | None = None) -> int:
 
     settings = load_settings()
     conn = connect(settings.db_path)
+
+    if args.cmd == "assets":
+        import json
+        from pathlib import Path
+
+        from . import assets
+        from .meter import Meter
+
+        dests = json.loads(Path(args.data).read_text(encoding="utf8"))["destinations"]
+        missing = assets.check(dests, settings.seed_dir, assets.load_photos())
+        if args.fill_photos and missing["photo"]:
+            added = assets.fill_photos(Meter(conn, "assets"), missing["photo"])
+            print("photos added (marked for review):", ", ".join(added) or "none found")
+            missing = assets.check(dests, settings.seed_dir, assets.load_photos())
+        for kind, label in (("photo", "no photo"), ("photo_review", "photo not yet reviewed"), ("theme", "no theme row")):
+            if missing[kind]:
+                print(f"{label}: " + ", ".join(f"{m['code']} ({m['name']})" for m in missing[kind]))
+        if missing["theme"]:
+            print()
+            print(assets.theme_request(missing["theme"]))
+        if not any(missing.values()):
+            print("every destination has a photo and a theme row")
+        return 0
 
     if args.cmd == "select":
         chosen = jobs.select_destinations(conn, settings)
