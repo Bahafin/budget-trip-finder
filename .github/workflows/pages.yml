@@ -88,12 +88,16 @@ jobs:
           path: var/tripfinder.db
           key: tripdb-${{ github.run_id }}
 
+      - name: Destination and month pages
+        working-directory: backend
+        run: uv run python -m tripfinder pages
+
       - uses: actions/setup-node@v7
         with:
           node-version: 22
 
-      - name: Browser engine matches Python engine
-        run: node --test site/tests/parity.test.mjs
+      - name: Browser engine matches Python engine; pages are sound
+        run: node --test site/tests/parity.test.mjs site/tests/pages.test.mjs
 
       - name: Leave tests out of the published site
         run: rm -rf site/tests
