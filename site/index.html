@@ -76,6 +76,10 @@
   .hero-amt input:focus { outline: none; }
   .hero-amt:focus-within { outline: 3px solid var(--sun); outline-offset: 6px; border-radius: 6px; }
   .hero-amt .cur { color: var(--sun); }
+  .hero-amt { cursor: text; background: rgb(255 255 255 / 12%); border-radius: 10px 10px 0 0; padding: 2px 8px 2px; }
+  .hero-amt:hover { background: rgb(255 255 255 / 20%); }
+  .hero-amt .pen { font-size: 0.32em; font-family: var(--font-body); font-weight: 600; color: var(--sun); margin-left: 6px;
+                   align-self: center; letter-spacing: 0; border: 1px solid var(--sun); border-radius: 999px; padding: 2px 8px; }
   .hero-sub { font-size: clamp(16px, 2.4vw, 19px); margin: 0; max-width: 34em; text-shadow: 0 1px 10px rgb(0 0 0 / 35%); }
   .hero-credit { position: absolute; right: 16px; left: 16px; bottom: 92px; margin: 0; text-align: right; font-size: 11px; color: rgb(255 255 255 / 85%); }
   .hero-credit a { color: inherit; }
@@ -86,6 +90,7 @@
          display: grid; gap: 12px; grid-template-columns: repeat(6, minmax(0, 1fr)); border: 1px solid var(--line); }
   form > .field { grid-column: span 2; }
   form > .field.wide { grid-column: span 3; }
+  form > .field.budget { grid-column: 1 / -1; }
   .field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
   input, select { font: 500 16px var(--font-body); color: var(--ink); background: var(--surface-2); border: 1px solid var(--line);
                   border-radius: 10px; padding: 11px 12px; min-width: 0; width: 100%; }
@@ -94,8 +99,8 @@
         border-radius: 10px; padding: 14px 18px; cursor: pointer; }
   .go:hover { background: var(--cta-hover); }
   @media (min-width: 760px) {
-    form { grid-template-columns: repeat(5, minmax(0, 1fr)) auto; align-items: end; padding: 18px; }
-    form > .field, form > .field.wide { grid-column: auto; }
+    form { grid-template-columns: 1.3fr repeat(5, minmax(0, 1fr)) auto; align-items: end; padding: 18px; }
+    form > .field, form > .field.wide, form > .field.budget { grid-column: auto; }
     .go { grid-column: auto; height: 50px; }
   }
   .sortrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 28px 0 14px; }
@@ -217,8 +222,8 @@
       <a class="toplink" href="from-toronto/">Trips by destination and month</a>
     </div>
     <div class="hero-copy">
-      <h1>See how far <span class="hero-amt"><span class="cur" aria-hidden="true">$</span><input id="budget" name="budget" form="f" type="text" inputmode="numeric" autocomplete="off" pattern="[0-9, ]*" value="3,000" required aria-label="Total budget for the whole trip, in Canadian dollars"></span> goes.</h1>
-      <p class="hero-sub">Change the number to your total for the whole trip. We add up flights, a hotel and spending money for each place and show the ones that fit.</p>
+      <h1>See how far <span class="hero-amt"><span class="cur" aria-hidden="true">$</span><input id="budget" name="budget" form="f" type="text" inputmode="numeric" autocomplete="off" pattern="[0-9, ]*" value="3,000" required aria-label="Total budget for the whole trip, in Canadian dollars"><span class="pen" aria-hidden="true">✎ edit</span></span> goes.</h1>
+      <p class="hero-sub">Type your total for the whole trip, here or in the Budget box below. We add up flights, a hotel and spending money for each place and show the ones that fit.</p>
     </div>
   </div>
   <p class="hero-credit" title="Bávaro beach, Punta Cana">Photo: Oleg Yunakov, <a href="https://commons.wikimedia.org/wiki/File:2023_-_Playa_Bavaro_Punta_Cana_-_08.jpg" target="_blank" rel="noopener">CC BY-SA 4.0</a></p>
@@ -227,6 +232,7 @@
 <main class="wrap">
   <section class="search" aria-label="Trip search">
     <form id="f">
+      <label class="field budget">Budget (CAD, whole trip)<input id="budget2" type="text" inputmode="numeric" autocomplete="off" pattern="[0-9, ]*" value="3,000"></label>
       <label class="field">Adults<input name="adults" type="number" inputmode="numeric" min="1" max="9" value="2"></label>
       <label class="field">Children<input name="children" type="number" inputmode="numeric" min="0" max="9" value="0"></label>
       <label class="field">Nights<input name="nights" type="number" inputmode="numeric" min="1" max="30" placeholder="Longest"></label>
@@ -550,6 +556,19 @@ function run(e) {
 f.addEventListener("submit", run);
 // Typing in the headline updates the results after a short pause.
 let typing;
+// The form's Budget box mirrors the headline amount, both ways.
+const budget2 = document.getElementById("budget2");
+const syncForm = () => { budget2.value = budgetIn.value; };
+budget2.addEventListener("input", () => {
+  budgetIn.value = budget2.value;
+  sizeBudget();
+  clearTimeout(typing);
+  typing = setTimeout(() => { if (budgetValue() >= 100) run(); }, 400);
+});
+budget2.addEventListener("blur", () => { const v = budgetValue(); if (v) { budgetIn.value = fmt(v); syncForm(); sizeBudget(); } });
+budgetIn.addEventListener("input", syncForm);
+budgetIn.addEventListener("blur", syncForm);
+document.querySelector(".hero-amt").addEventListener("click", () => budgetIn.focus());
 budgetIn.addEventListener("input", () => {
   sizeBudget();
   clearTimeout(typing);
@@ -559,6 +578,7 @@ budgetIn.addEventListener("input", () => {
 budgetIn.addEventListener("blur", () => { const v = budgetValue(); if (v) { budgetIn.value = fmt(v); sizeBudget(); } });
 sortSel.addEventListener("change", () => run());
 document.fonts.ready.then(sizeBudget);
+syncForm();
 addEventListener("resize", sizeBudget);
 run();
 </script>
