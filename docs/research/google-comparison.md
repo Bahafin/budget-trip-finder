@@ -44,6 +44,13 @@ That's closer to our product than any Google tool so far. Where it falls short:
 
 Where it beats us: places grouped by theme, any destination (Mexico City; trips without a flight like Montreal by train), conversation, and an instant personal pick ("I'd choose Mexico City").
 
+**Gemini** (2026-11-26, [inbox note](inbox/2026-11-26-gemini-2500-for-two.md)) answered the same question with three trips:
+- Montreal by train or flight
+- Ottawa by train or car
+- Cancún direct from Hamilton.
+
+Each came with transport, nightly rate, "what's left" and "best for", **plus a Google Maps panel with pins**. That map is Google's real edge in chat: Maps is built in, and no chatbot without it can match that. Gemini had the same gaps as ChatGPT: no sources shown, no advisories, and a total that can go over the budget at its own upper figures (Montreal: up to $2,770). Both chatbots ended with the same follow-up questions (months, city vs warm, nights, fly vs ground). That's a ready-made question list for our chat input (feature-ideas #2).
+
 ## 2. Side by side on the core question
 
 | What the user needs | Google (best tool for it) | Far Enough today | Who wins |
@@ -54,7 +61,8 @@ Where it beats us: places grouped by theme, any destination (Mexico City; trips 
 | Honest uncertainty | Price insights for flights (good / typical / high) | Low / expected / high range on the total, confidence label per part | **Us** (if Gate A holds) |
 | Price freshness and accuracy | **Live** fares and hotel prices | Cached fares (up to about 7 days), sampled hotel bands, estimated daily spend. Spot check within -8% to +4% on 3 trips; Gate A not done | **Google** |
 | Destination coverage | Every route from YYZ | 25 destinations, flights only (no train, bus or drive trips; no Mexico City) | **Google** (and chatbots) |
-| Choosing between results | Map and price | Numbers only, no "best for" | **Chatbots** (themes); feature-ideas #8 |
+| Choosing between results | Map and price; Gemini adds a Maps panel and "best for" | Numbers only, no "best for", no map | **Google / chatbots**; feature-ideas #8, #11 |
+| Departure airport choice | Any airport; Gemini picked Hamilton for a direct Cancún flight | YYZ and YTZ only | **Google**; feature-ideas #10 |
 | Dates | Flexible dates, calendar, "any week in the next 6 months", months ahead | Month optional; fares only about 3 months ahead | **Google** |
 | Natural-language input | Flight Deals and AI Mode take a sentence | Form only (LLM parsing planned after Gate A) | **Google** |
 | CAD and Canadian context | CAD prices; no advisories | CAD, Government of Canada advisory level on each result, level 2+ dropped | **Us** |
@@ -122,3 +130,4 @@ For each answer, note:
 | Date | Tool | Question | Result in one line | Note |
 |---|---|---|---|---|
 | 2026-11-26 | ChatGPT (web search, logged in) | Like Q1: $2,500, 2 adults, next 2 months, Toronto or Hamilton | Mexico City, Cancún, Montreal, New York, Orlando, totals $1,700-2,300 for two, grouped by theme. First guessed 1 adult; numbers inconsistent; no advisories | [inbox](inbox/2026-11-26-chatgpt-2500-for-two.md) |
+| 2026-11-26 | Gemini app (Auto) | Same, 2 adults given, "flight or other methods of travel" | Montreal (train/flight), Ottawa (train/drive), Cancún direct from Hamilton, with a Google Maps panel. Montreal can exceed the budget at its own upper figures; no sources; no advisories | [inbox](inbox/2026-11-26-gemini-2500-for-two.md) |
