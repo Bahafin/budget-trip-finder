@@ -6,7 +6,7 @@ Nothing here does I/O. Inputs are plain dataclasses that the data layer fills fr
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -176,6 +176,10 @@ def flight_component(fares: list[Fare], req: TripRequest, nights: int, month: st
         f"{len(pool)} cached fares, cheapest {best.price} pp on {best.depart:%b %d}, {best.nights} nights"
         + ("" if exact else f" (no fare near {nights} nights; used nearest dates)")
     )
+    if not exact:
+        # No fare of this length: the price is an estimate from other dates, so the trip keeps the requested
+        # length (return = depart + nights) and drops the cached link, which would open different dates.
+        best = replace(best, ret=best.depart + timedelta(days=nights), link="")
     return Component("flights", per_person * req.travellers, confidence, detail), best
 
 

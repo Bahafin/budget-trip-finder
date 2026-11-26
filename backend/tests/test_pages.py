@@ -139,7 +139,7 @@ def _dest(n_fares, nights=7, band_n=30, months=("2027-01",)):
 
 
 def _builder(dests):
-    snap = pages.Snapshot(TODAY, "2026-11-25T00:00:00+00:00", {}, dests, {}, {}, {})
+    snap = pages.Snapshot(TODAY, "2026-11-25T00:00:00+00:00", {}, dests, {}, {}, {}, {})
     return pages.Builder(snap, pages.Pricer(snap), {})
 
 
@@ -174,7 +174,7 @@ def test_relative_links():
 
 
 def test_hotel_link_matches_engine_js_template():
-    snap = pages.Snapshot(TODAY, "", {}, [], {"CUN": {"url": "https://x.test/?in=%7Bcheckin%7D&out={checkout}&r=%7Brooms%7D", "partner": "P"}}, {}, {})
+    snap = pages.Snapshot(TODAY, "", {}, [], {"CUN": {"url": "https://x.test/?in=%7Bcheckin%7D&out={checkout}&r=%7Brooms%7D", "partner": "P"}}, {}, {}, {})
     f = Fare("CUN", date(2027, 1, 5), date(2027, 1, 12), Money.of(400), TODAY)
     assert pages.hotel_link(snap, "CUN", f, 3, 0)["url"] == "https://x.test/?in=2027-01-05&out=2027-01-12&r=2"
 
@@ -184,3 +184,16 @@ def test_brand_is_one_constant(built):
     text = next(iter(files.values()))
     assert pages.BRAND_NAME in text
     assert Path(pages.__file__).read_text(encoding="utf8").count('"Budget Trip Finder"') == 1
+
+
+def test_estimated_fare_gets_a_search_link_for_its_own_dates():
+    from datetime import date
+
+    from tripfinder.engine import Fare
+    from tripfinder.money import Money
+
+    snap = pages.Snapshot(TODAY, "", {}, [], {}, {"CUN": "https://tp.media/r?u=https%3A%2F%2Fwww.aviasales.com%2Fsearch%2FYTO%7Bdep%7DCUN%7Bret%7D%7Bpax%7D"}, {}, {})
+    est = Fare("CUN", date(2027, 1, 10), date(2027, 1, 17), Money.of(300), TODAY)
+    assert pages.flight_link(snap, "CUN", est, 2, 1).endswith("YTO1001CUN170121")
+    cached = Fare("CUN", date(2027, 1, 10), date(2027, 1, 17), Money.of(300), TODAY, link="https://cached")
+    assert pages.flight_link(snap, "CUN", cached, 2, 0) == "https://cached"

@@ -99,6 +99,7 @@ class Snapshot:
     constants: dict[str, Any]
     dests: list[DestinationData]
     hotel: dict[str, dict[str, str] | None]  # code -> {url template, partner}
+    flight_search: dict[str, str]  # code -> Aviasales search template, for estimated fares
     advisories: dict[str, dict[str, Any]]
     notes: dict[str, list[dict[str, str]]]
 
@@ -106,7 +107,7 @@ class Snapshot:
 def load_snapshot(path: Path) -> Snapshot:
     raw = json.loads(path.read_text(encoding="utf8"))
     today = date.fromisoformat(raw["today"])
-    dests, hotel = [], {}
+    dests, hotel, flight_search = [], {}, {}
     for d in raw["destinations"]:
         fares = [
             Fare(
@@ -126,7 +127,8 @@ def load_snapshot(path: Path) -> Snapshot:
         level = Decimal(str(d["priceLevel"])) if d.get("priceLevel") is not None else None
         dests.append(DestinationData(d["code"], d["name"], d["country"], fares, bands, level))
         hotel[d["code"]] = d.get("hotel")
-    return Snapshot(today, raw["generatedAt"], raw["constants"], dests, hotel, raw.get("advisories", {}), raw.get("notes", {}))
+        flight_search[d["code"]] = d.get("flightSearch") or ""
+    return Snapshot(today, raw["generatedAt"], raw["constants"], dests, hotel, flight_search, raw.get("advisories", {}), raw.get("notes", {}))
 
 
 def load_photos(path: Path) -> dict[str, dict[str, str]]:
@@ -226,6 +228,17 @@ def budget_amt(n: float) -> str:
 
 def sponsored(url: str, text: str, cls: str = "btn secondary") -> str:
     return f'<a class="{cls}" href="{esc(url)}" target="_blank" rel="sponsored nofollow noopener">{esc(text)} ↗</a>'
+
+
+def flight_link(snap: Snapshot, code: str, fare: Fare, adults: int, children: int) -> str:
+    """Python port of flightLinkFor() in site/engine.js."""
+    if fare.link:
+        return fare.link
+    url = snap.flight_search.get(code) or ""
+    values = {"dep": fare.depart.strftime("%d%m"), "ret": fare.ret.strftime("%d%m"), "pax": f"{adults}{children or ''}"}
+    for k, v in values.items():
+        url = url.replace("{" + k + "}", v).replace("%7B" + k + "%7D", v)
+    return url
 
 
 def hotel_link(snap: Snapshot, code: str, fare: Fare, adults: int, children: int) -> dict[str, str] | None:
@@ -433,8 +446,9 @@ def method_list(fmt: Fmt, pkgs: dict[str, Package]) -> str:
 
 def partner_ctas(snap: Snapshot, d: DestinationData, fare: Fare, adults: int = ADULTS, children: int = 0) -> str:
     out = []
-    if fare.link:
-        out.append(sponsored(fare.link, "See these flights on Aviasales", "btn primary"))
+    url = flight_link(snap, d.code, fare, adults, children)
+    if url:
+        out.append(sponsored(url, "See these flights on Aviasales" if fare.link else "Search these dates on Aviasales", "btn primary"))
     h = hotel_link(snap, d.code, fare, adults, children)
     if h:
         out.append(sponsored(h["url"], f"See hotels on {h['partner']}"))

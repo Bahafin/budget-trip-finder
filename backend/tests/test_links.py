@@ -2,7 +2,7 @@ import urllib.parse
 from pathlib import Path
 
 from tripfinder.config import Settings
-from tripfinder.links import aviasales_page, flight_link, hotel_link
+from tripfinder.links import aviasales_page, flight_link, flight_search_link, hotel_link
 
 S = Settings("tok", "809658", "key", Path("x.db"), Path("seed"))
 
@@ -37,3 +37,11 @@ def test_other_destinations_get_booking_search_with_trip_details():
     assert h["partner"] == "Booking.com"
     q = _q(h["url"])
     assert (q["ss"], q["checkin"], q["group_adults"], q["group_children"]) == ("Cancun", "2027-01-10", "2", "1")
+
+
+def test_flight_search_template_is_tracked_with_placeholders():
+    url = flight_search_link(S, "CUN")
+    q = _q(url)
+    assert (q["campaign_id"], q["marker"], q["sub_id"]) == ("100", "809658", "site-CUN-flight")
+    assert q["u"] == "https://www.aviasales.com/search/YTO{dep}CUN{ret}{pax}"
+    assert "%7Bdep%7D" in url  # the browser fills the encoded placeholders

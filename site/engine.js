@@ -8,6 +8,7 @@ const NIGHTS_MAX = 14;
 const DAY_MS = 86400000;
 const parseDate = (s) => new Date(s + "T00:00:00Z");
 const daysBetween = (a, b) => Math.round((parseDate(b) - parseDate(a)) / DAY_MS);
+const addDays = (d, n) => new Date(parseDate(d).getTime() + n * DAY_MS).toISOString().slice(0, 10);
 const monthIndex = (m) => Number(m.slice(0, 4)) * 12 + Number(m.slice(5, 7));
 const range = (low, expected, high) => {
   const [l, e, h] = [low, expected, high].sort((a, b) => a - b);
@@ -17,6 +18,19 @@ const scale = (r, f) => ({ low: r.low * f, expected: r.expected * f, high: r.hig
 const add = (a, b) => ({ low: a.low + b.low, expected: a.expected + b.expected, high: a.high + b.high });
 
 // "Check hotels" link for a trip. The export gives each destination a template; placeholders may be URL-encoded.
+const fill = (url, values) => {
+  for (const [k, v] of Object.entries(values)) url = url.replaceAll(`{${k}}`, v).replaceAll(`%7B${k}%7D`, v);
+  return url;
+};
+const ddmm = (iso) => iso.slice(8, 10) + iso.slice(5, 7);
+
+// The cached fare's own link, or (for an estimated fare) an Aviasales search for the trip's dates.
+export function flightLinkFor(dest, fare, req) {
+  if (fare.link) return fare.link;
+  if (!dest.flightSearch) return "";
+  return fill(dest.flightSearch, { dep: ddmm(fare.depart), ret: ddmm(fare.ret), pax: `${req.adults}${req.children ? req.children : ""}` });
+}
+
 export function hotelLinkFor(dest, fare, req) {
   if (!dest.hotel) return null;
   const values = {
@@ -65,9 +79,11 @@ function flightComponent(dest, req, nights, month, today, C) {
     `${pool.length} cached fares, cheapest $${Math.round(best.price)} pp on ${best.depart}, ${best.nights} nights` +
     (best.airline ? `, ${best.airline}${best.transfers ? `, ${best.transfers} stop${best.transfers > 1 ? "s" : ""}` : ", direct"}` : "") +
     (exact ? "" : ` (no fare near ${nights} nights; used nearest dates)`);
+  // No fare of this length: keep the requested length and drop the link to other dates (see engine.py).
+  const fare = exact ? best : { ...best, ret: addDays(best.depart, nights), nights, link: "" };
   return {
     comp: { name: "flights", ...scale(perPerson, req.adults + req.children), confidence: exact ? `cached (${age}d)` : "estimated", detail },
-    fare: best,
+    fare,
   };
 }
 

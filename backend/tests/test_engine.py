@@ -207,3 +207,12 @@ def test_without_a_length_short_fares_are_ignored():
     # an explicit short request still works
     p2 = price_package(d, TripRequest(Money.of(9999), adults=1, nights=2, month="2027-01"), 2, "2027-01", TODAY)
     assert p2.nights == 2
+
+
+def test_estimated_fare_dates_span_the_nights_priced():
+    # Only a 2-night fare exists; a 7-night request is priced as 7 nights and must show 7 nights of dates.
+    d = dest([fare(300, nights=2)])
+    req = TripRequest(Money.of(5000), 2, 0, "2027-01", 7, "mid")
+    pkg = price_package(d, req, 7, "2027-01", date(2026, 11, 25))
+    assert pkg.nights == 7 and (pkg.fare.ret - pkg.fare.depart).days == 7
+    assert pkg.fare.depart == date(2027, 1, 10) and pkg.fare.link == ""

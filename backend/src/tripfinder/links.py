@@ -60,6 +60,13 @@ def flight_link(s: Settings, cache_link: str, destination: str) -> str:
     return tracked(s, "aviasales", aviasales_page(cache_link), f"site-{destination}-flight")
 
 
+def flight_search_link(s: Settings, destination: str) -> str:
+    """Aviasales search from Toronto for any dates; the browser fills {dep} {ret} (DDMM) and {pax}
+    (adults digit, then children digit if any). Used when no cached fare matches the trip's length."""
+    page = f"https://www.aviasales.com/search/YTO{{dep}}{destination}{{ret}}{{pax}}"
+    return tracked(s, "aviasales", page, f"site-{destination}-flight")
+
+
 def hotel_link(s: Settings, city: str, country: str, destination: str, checkin: str, checkout: str, adults: int, children: int, rooms: int) -> dict[str, str]:
     """Where "Check hotels" goes. Klook (tracked) for Asia; elsewhere a Booking.com search until Expedia's
     link format is known (TODO.md). Returns the url and the partner name for the button label."""

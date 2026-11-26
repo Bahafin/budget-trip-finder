@@ -21,7 +21,7 @@ from .engine import (
     NIGHTLY_BASE_CAD,
     NIGHTS_TOLERANCE,
 )
-from .links import flight_link, hotel_link
+from .links import flight_link, flight_search_link, hotel_link
 from .search import load_destinations, load_notes
 
 
@@ -45,6 +45,8 @@ def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = N
                 "country": d.country_code,
                 "priceLevel": float(d.price_level) if d.price_level is not None else None,
                 # "Check hotels" link; the browser fills {checkin} {checkout} {adults} {children} {rooms}.
+                # Flight search for trips with no cached fare of that length; the browser fills {dep} {ret} {pax}.
+                "flightSearch": flight_search_link(s, d.code),
                 "hotel": hotel_link(s, d.name, d.country_code, d.code, "{checkin}", "{checkout}", "{adults}", "{children}", "{rooms}"),
                 "fares": [
                     {

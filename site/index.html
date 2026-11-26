@@ -239,7 +239,7 @@
 </main>
 
 <script type="module">
-import { hotelLinkFor, prepare, roomsNeeded, search } from "./engine.js";
+import { flightLinkFor, hotelLinkFor, prepare, roomsNeeded, search } from "./engine.js";
 import { PHOTOS } from "./photos.js";
 
 const f = document.getElementById("f");
@@ -383,8 +383,9 @@ function card(p, req, data) {
   // Outbound partner links (we refer, we don't sell)
   const ctas = el("div", { class: "ctas" });
   const hotel = hotelLinkFor(p.dest, p.fare, req);
-  if (p.fare.link) ctas.append(el("a", { class: "btn primary", href: p.fare.link, target: "_blank", rel: "noopener sponsored" }, "See flights on Aviasales ↗"));
-  if (hotel) ctas.append(el("a", { class: `btn ${p.fare.link ? "secondary" : "primary"}`, href: hotel.url, target: "_blank", rel: "noopener sponsored" }, `See hotels on ${hotel.partner} ↗`));
+  const flightUrl = flightLinkFor(p.dest, p.fare, req);
+  if (flightUrl) ctas.append(el("a", { class: "btn primary", href: flightUrl, target: "_blank", rel: "noopener sponsored" }, p.fare.link ? "See flights on Aviasales ↗" : "Search these dates on Aviasales ↗"));
+  if (hotel) ctas.append(el("a", { class: `btn ${flightUrl ? "secondary" : "primary"}`, href: hotel.url, target: "_blank", rel: "noopener sponsored" }, `See hotels on ${hotel.partner} ↗`));
   if (ctas.childElementCount < 2) ctas.style.gridTemplateColumns = "1fr";
   b.append(ctas, el("p", { class: "fine" }, "Prices are estimates. Opens the partner site, where you check live prices and book. May be an affiliate link."));
 
