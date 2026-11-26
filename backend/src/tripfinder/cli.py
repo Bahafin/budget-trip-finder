@@ -5,6 +5,8 @@
   search ...          ranked packages for a budget
   costs               what keeping the data fresh costs (from the api_calls log)
   serve               local web page on http://127.0.0.1:8000
+  export              write site/data.json (and parity cases)
+  pages               generate destination and month pages from site/data.json
 """
 
 from __future__ import annotations
@@ -52,7 +54,15 @@ def main(argv: list[str] | None = None) -> int:
     ex = sub.add_parser("export", help="write the static site data snapshot (and parity cases for the JS engine)")
     ex.add_argument("--out", default=str(ROOT / "site" / "data.json"))
     ex.add_argument("--golden", default=str(ROOT / "site" / "tests" / "golden.json"))
+    pg = sub.add_parser("pages", help="generate the destination and month pages from the site snapshot")
+    pg.add_argument("--indexable", action="store_true", help="allow indexing (default: TRIPFINDER_INDEXABLE env var, else noindex)")
     args = ap.parse_args(argv)
+
+    if args.cmd == "pages":  # needs only site/data.json, not the database
+        from .pages import generate
+
+        print("pages:", generate(indexable=True if args.indexable else None))
+        return 0
 
     settings = load_settings()
     conn = connect(settings.db_path)
