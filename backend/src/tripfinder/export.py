@@ -17,6 +17,7 @@ from .engine import (
     DAILY_BASE_CAD,
     FLIGHT_LIFT,
     FLIGHT_LOW_FACTOR,
+    MIN_NIGHTS,
     NIGHTLY_BASE_CAD,
     NIGHTS_TOLERANCE,
 )
@@ -83,6 +84,7 @@ def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = N
             "nightlyBase": NIGHTLY_BASE_CAD,
             "childDailyShare": float(CHILD_DAILY_SHARE),
             "nightsTolerance": NIGHTS_TOLERANCE,
+            "minNights": MIN_NIGHTS,
             "flightLow": float(FLIGHT_LOW_FACTOR),
             "flightLift": {"exact": [float(x) for x in FLIGHT_LIFT[True]], "nearby": [float(x) for x in FLIGHT_LIFT[False]]},
         },

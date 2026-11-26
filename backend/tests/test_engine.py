@@ -198,3 +198,12 @@ def test_lodging_uses_the_fares_season_factor():
     lodging = price_package(d, req, 7, "2027-01", TODAY).components[1]
     assert lodging.total.expected == Money.of(150 * 7 * 1.5)
     assert "x1.50" in lodging.detail
+
+
+def test_without_a_length_short_fares_are_ignored():
+    d = dest([fare(150, nights=2), fare(400, nights=5)], {("2027-01", "mid"): band(100, 150, 220)})
+    p = best_package(d, TripRequest(Money.of(9999), adults=1, month="2027-01"), TODAY)
+    assert p.nights >= 3
+    # an explicit short request still works
+    p2 = price_package(d, TripRequest(Money.of(9999), adults=1, nights=2, month="2027-01"), 2, "2027-01", TODAY)
+    assert p2.nights == 2

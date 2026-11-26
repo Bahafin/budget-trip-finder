@@ -59,3 +59,14 @@ Whole trip, 2 adults (hotels from the 2026-11-24 Booking.com check; daily spend 
 - Chicago shows the remaining risk. Its cached fare was 7 days old, and the real price rose from 425 to 467 overnight. Ideas to test: lift older fares more than fresh ones, and in Gate A, compare how far cached fares drift by age.
 - Holiday dates (Edmonton, Christmas) still run low. Peak-date handling is another Gate A question.
 - Still unverified: daily spend, and hotel fees paid at the property.
+
+## Hotel seasonality calibration (2026-11-26)
+
+LiteAPI's city price index (daily average of up to 1,000 hotels) is used to price hotels for a trip's actual dates relative to the mid-month dates our hotel sample used. Two Booking.com checks (4-star, 2 adults, price plus taxes, first page median):
+
+| Trip | Booking.com | Our band, no seasonality | Full index factor | Half factor (chosen) |
+|---|---|---|---|---|
+| Cancun, Dec 28-31 | 244 / night | 161 (-34%) | x1.88 = 303 (+24%) | x1.44 = 232 (-5%) |
+| Edmonton, Dec 25-27 | 175 / night | 172 (-2%) | x1.29 = 222 (+27%) | x1.15 = 197 (+12%) |
+
+The index swings harder than mid-range hotels do, probably because it averages in luxury properties. Half the swing (`SEASON_WEIGHT = 0.5` in `engine.py`) has the smallest error on these two points. Two points are not a calibration, so Gate A must recheck it with more holiday and off-season dates.

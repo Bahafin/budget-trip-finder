@@ -126,9 +126,17 @@ def parse_hotel_prices(payload: dict[str, Any]) -> list[HotelPrice]:
         best: tuple[float, str] | None = None
         for rt in h.get("roomTypes") or []:
             for r in rt.get("rates") or []:
-                for t in (r.get("retailRate") or {}).get("total") or []:
-                    if best is None or t["amount"] < best[0]:
-                        best = (float(t["amount"]), t["currency"])
+                retail = r.get("retailRate") or {}
+                for t in retail.get("total") or []:
+                    # Fees marked "not included" (resort, environment, city tax) are paid at the hotel; add them.
+                    extra = sum(
+                        float(f.get("amount") or 0)
+                        for f in retail.get("taxesAndFees") or []
+                        if f.get("included") is False and f.get("currency") == t["currency"]
+                    )
+                    amount = float(t["amount"]) + extra
+                    if best is None or amount < best[0]:
+                        best = (amount, t["currency"])
         if best is None:
             continue
         meta = info.get(h["hotelId"], {})

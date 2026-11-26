@@ -47,7 +47,8 @@ function flightComponent(dest, req, nights, month, today, C) {
   const tol = C.nightsTolerance;
   const inMonth = dest.fares.filter((f) => f.month === month);
   if (!inMonth.length) return null;
-  const matching = inMonth.filter((f) => Math.abs(f.nights - nights) <= tol);
+  const shortest = req.nights != null ? 1 : (C.minNights ?? NIGHTS_MIN);
+  const matching = inMonth.filter((f) => Math.abs(f.nights - nights) <= tol && f.nights >= shortest);
   const exact = matching.length > 0;
   const pool = [...(exact ? matching : inMonth)].sort(
     (a, b) => a.price - b.price || a.depart.localeCompare(b.depart) || a.ret.localeCompare(b.ret),

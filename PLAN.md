@@ -61,14 +61,16 @@ Goal: testers see fresh, accurate-looking trips, and every click can earn.
   - It restores the database from the Actions cache and runs `refresh auto` (flights when older than 20 h, hotels 6 days, reference data 25 days, destination list 30 days; an empty database rebuilds itself).
   - It then exports the snapshot, runs both test suites, deploys, and writes a refresh and data-cost summary on each run.
   - Without the secrets it deploys the committed snapshot.
-- [ ] **1.2 Affiliate links.**
-  - Generate Aviasales, Klook and KKday links with the Travelpayouts partner links API at export time, tagged per destination (`sub_id`). Project ID 605382.
-  - "Check hotels" goes to Expedia once its link format is known (TODO.md); Klook until then.
-- [ ] **1.3 Accuracy fixes found in validation:**
-  - (a) add hotel fees LiteAPI marks as paid at the property
-  - (b) seasonality from LiteAPI's city price index, so holiday dates price higher
-  - (c) richer flight coverage with `grouped_prices` and trip-length windows
-  - (d) minimum trip length of 3-4 nights by default, so results look like real holidays
+- [x] **1.2 Affiliate links** (done 2026-11-26, except Expedia).
+  - `backend/src/tripfinder/links.py` builds Travelpayouts partner links (project 605382) at export time, tagged per destination (`sub_id` such as `site-CUN-flight`). The export checks the format against the partner links API once per run.
+  - Flight links are tracked (verified: the redirect lands on Aviasales with marker and click ID).
+  - "Check hotels" goes to Klook (tracked) for Asian destinations and an untracked Booking.com search elsewhere, until Expedia's link format is known (TODO.md).
+  - Airline names and stops come from the Travelpayouts airlines file.
+- [x] **1.3 Accuracy fixes found in validation** (done 2026-11-26):
+  - (a) hotel fees LiteAPI marks as paid at the property are now added (same currency only)
+  - (b) seasonality: weekly job stores LiteAPI's city price index for all 25 destinations. Each fare gets a factor (trip nights vs sample nights, half-weighted, clamped 0.6-2.0). Calibration in docs/validation-2026-11-24.md
+  - (c) ~~`grouped_prices` for richer flight coverage~~ tested: it reads the same cache and adds almost nothing (Chicago in January: 1 fare either way). Thin destinations stay thin. The real fix is the live price check in Stage 4
+  - (d) without a requested length, fares shorter than 3 nights are ignored. The default search now returns 3-5 night trips
 - [ ] **1.4 Tester feedback.** A "Was this price right?" link on each result, opening a short form with the trip pre-filled (owner provides the form). This doubles as Gate A data.
 - [ ] **1.5 Small fixes.**
   - Airline names instead of codes.

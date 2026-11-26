@@ -22,7 +22,8 @@ CHILD_DAILY_SHARE = Decimal("0.7")
 # Fallback nightly room rate in Canada when no hotel sample exists, scaled the same way. Label: estimated.
 NIGHTLY_BASE_CAD = {"budget": 130, "mid": 210, "upscale": 380}
 
-NIGHTS_SEARCH = range(14, 2, -1)  # when the user gives no length: try 14 nights down to 3
+MIN_NIGHTS = 3  # without a requested length, shorter fares are ignored: results should look like holidays
+NIGHTS_SEARCH = range(14, MIN_NIGHTS - 1, -1)  # when the user gives no length: try 14 nights down to 3
 NIGHTS_TOLERANCE = 2  # a cached fare counts as "this length" if within +/- 2 nights
 
 # Flight range around the cheapest cached fare for the trip's dates: low, and (expected, high) lifts.
@@ -156,7 +157,8 @@ def flight_component(fares: list[Fare], req: TripRequest, nights: int, month: st
     in_month = [f for f in fares if f.month == month]
     if not in_month:
         return None
-    matching = [f for f in in_month if abs(f.nights - nights) <= NIGHTS_TOLERANCE]
+    shortest = 1 if req.nights is not None else MIN_NIGHTS
+    matching = [f for f in in_month if abs(f.nights - nights) <= NIGHTS_TOLERANCE and f.nights >= shortest]
     exact = bool(matching)
     pool = sorted(matching or in_month, key=lambda f: (f.price.amount, f.depart, f.ret))  # deterministic ties
     prices = [f.price for f in pool]

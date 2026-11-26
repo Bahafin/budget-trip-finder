@@ -67,3 +67,19 @@ def test_tiers_from_stars():
 
 def test_upcoming_months_crosses_year_end():
     assert upcoming_months(3, date(2026, 11, 23)) == ["2026-12", "2027-01", "2027-02"]
+
+
+def test_hotel_fees_paid_at_the_property_are_added():
+    payload = {
+        "data": [{"hotelId": "h1", "roomTypes": [{"rates": [{"retailRate": {
+            "total": [{"amount": 400.0, "currency": "CAD"}],
+            "taxesAndFees": [
+                {"included": True, "amount": 50.0, "currency": "CAD"},
+                {"included": False, "amount": 31.41, "currency": "CAD", "description": "Environment fee"},
+                {"included": False, "amount": 10.0, "currency": "USD"},
+            ],
+        }}]}]}],
+        "hotels": [{"id": "h1", "name": "Resort", "stars": 4}],
+    }
+    [h] = parse_hotel_prices(payload)
+    assert h.total == 431.41  # included tax already in total; USD fee skipped (can't mix currencies)
