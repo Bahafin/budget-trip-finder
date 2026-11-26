@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<meta name="description" content="Prototype: whole-trip ideas from Toronto for a total budget, with flights, hotel and daily spending estimated in CAD.">
+<meta name="description" content="Far Enough (prototype): see how far your budget goes. Whole trips from Toronto with flights, hotel and spending money estimated in CAD.">
 <meta name="color-scheme" content="light dark">
-<title>Budget Trip Finder</title>
+<title>Far Enough</title>
 <link rel="preconnect" href="https://thumb.wikimedia.org">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -60,36 +60,40 @@
   .hero::after { content: ""; position: absolute; inset: 0; z-index: -1;
     background: linear-gradient(180deg, rgb(5 25 30 / 55%) 0%, rgb(5 25 30 / 25%) 40%, rgb(5 25 30 / 70%) 100%); }
   .topbar { display: flex; align-items: center; justify-content: space-between; padding-top: 16px; }
-  .logo { font: 800 18px/1 var(--font-display); letter-spacing: -0.01em; color: #fff; text-decoration: none; display: flex; gap: 8px; align-items: center; }
+  .topbar { gap: 4px 16px; flex-wrap: wrap; justify-content: flex-start; }
+  .logo { font: 800 20px/1 var(--font-display); letter-spacing: -0.01em; color: #fff; text-decoration: none; display: flex; gap: 8px; align-items: center; }
   .logo svg { flex: none; }
-  .hero-copy { padding: 48px 0 124px; max-width: 720px; }
-  .eyebrow { font-weight: 600; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; opacity: .92; margin: 0 0 10px; }
-  h1 { font: 800 clamp(34px, 7vw, 60px)/1.05 var(--font-display); letter-spacing: -0.02em; margin: 0 0 14px; text-shadow: 0 2px 18px rgb(0 0 0 / 30%); }
-  h1 .amt { color: var(--sun); white-space: nowrap; }
-  .hero-sub { font-size: clamp(16px, 2.4vw, 19px); margin: 0; max-width: 560px; text-shadow: 0 1px 10px rgb(0 0 0 / 35%); }
+  .descriptor { font-size: 14px; color: rgb(255 255 255 / 88%); }
+  .hero-copy { padding: 40px 0 124px; max-width: 1000px; }
+  h1 { font: 800 clamp(40px, 9vw, 76px)/1.04 var(--font-display); letter-spacing: -0.025em; margin: 0 0 16px; text-shadow: 0 2px 18px rgb(0 0 0 / 30%); }
+  /* The amount in the headline is the budget field itself: accented because you can change it. */
+  .hero-amt { display: inline-flex; align-items: baseline; white-space: nowrap; border-bottom: 4px solid var(--sun); line-height: 1; padding-bottom: 2px; }
+  .hero-amt input { font: inherit; letter-spacing: inherit; color: var(--sun); background: transparent; border: 0; border-radius: 0; padding: 0;
+               width: 4.6ch; text-shadow: inherit; -moz-appearance: textfield; appearance: textfield; font-variant-numeric: tabular-nums; }
+  .hero-amt input::-webkit-outer-spin-button, .hero-amt input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .hero-amt input:focus { outline: none; }
+  .hero-amt:focus-within { outline: 3px solid var(--sun); outline-offset: 6px; border-radius: 6px; }
+  .hero-amt .cur { color: var(--sun); }
+  .hero-sub { font-size: clamp(16px, 2.4vw, 19px); margin: 0; max-width: 34em; text-shadow: 0 1px 10px rgb(0 0 0 / 35%); }
   .hero-credit { position: absolute; right: 16px; left: 16px; bottom: 92px; margin: 0; text-align: right; font-size: 11px; color: rgb(255 255 255 / 85%); }
   .hero-credit a { color: inherit; }
 
   /* Search panel */
   .search { position: relative; margin-top: -84px; z-index: 2; }
-  form { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px;
+  form { background: var(--surface); border-radius: 16px; box-shadow: var(--shadow); padding: 16px;
          display: grid; gap: 12px; grid-template-columns: repeat(6, minmax(0, 1fr)); border: 1px solid var(--line); }
   form > .field { grid-column: span 2; }
   form > .field.wide { grid-column: span 3; }
   .field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
-  .field.budget { grid-column: 1 / -1; }
-  .money { position: relative; }
-  .money span { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font: 700 22px var(--font-display); color: var(--ink); }
   input, select { font: 500 16px var(--font-body); color: var(--ink); background: var(--surface-2); border: 1px solid var(--line);
-                  border-radius: 12px; padding: 11px 12px; min-width: 0; width: 100%; }
-  .money input { font: 700 24px var(--font-display); padding: 10px 12px 10px 34px; }
+                  border-radius: 10px; padding: 11px 12px; min-width: 0; width: 100%; }
   input:focus, select:focus { border-color: var(--brand); }
   .go { grid-column: 1 / -1; font: 700 17px var(--font-display); background: var(--cta); color: var(--on-cta); border: 0;
-        border-radius: 12px; padding: 14px 18px; cursor: pointer; }
+        border-radius: 10px; padding: 14px 18px; cursor: pointer; }
   .go:hover { background: var(--cta-hover); }
   @media (min-width: 760px) {
-    form { grid-template-columns: 1.6fr repeat(5, minmax(0, 1fr)) auto; align-items: end; padding: 18px; }
-    form > .field, form > .field.wide, .field.budget { grid-column: auto; }
+    form { grid-template-columns: repeat(5, minmax(0, 1fr)) auto; align-items: end; padding: 18px; }
+    form > .field, form > .field.wide { grid-column: auto; }
     .go { grid-column: auto; height: 50px; }
   }
   .sortrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 28px 0 14px; }
@@ -102,7 +106,7 @@
   #results { display: grid; gap: 20px; grid-template-columns: 1fr; }
   @media (min-width: 760px) { #results { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (min-width: 1100px) { #results { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-  .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+  .card { background: var(--surface); border-radius: 14px; overflow: hidden;
           display: flex; flex-direction: column; border: 1px solid var(--line); }
   .photo { position: relative; aspect-ratio: 16 / 10; background: linear-gradient(135deg, #1f6f78, #f4a03a); margin: 0; }
   .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -110,6 +114,7 @@
   .place { position: absolute; left: 16px; right: 16px; bottom: 24px; z-index: 1; color: #fff; }
   .place h2 { margin: 0; font: 800 26px/1.1 var(--font-display); letter-spacing: -0.01em; text-shadow: 0 1px 8px rgb(0 0 0 / 40%); }
   .place p { margin: 2px 0 0; font-size: 14px; text-shadow: 0 1px 6px rgb(0 0 0 / 50%); }
+  .place .country { font-weight: 600; }
   .fit { position: absolute; top: 12px; left: 12px; z-index: 1; font-size: 13px; font-weight: 700; padding: 5px 10px; border-radius: 999px; }
   .fit.within { background: var(--fit-bg); color: var(--fit-ink); }
   .fit.stretch { background: var(--stretch-bg); color: var(--stretch-ink); }
@@ -135,7 +140,6 @@
   .meter .budget { position: absolute; top: 2px; height: 24px; border-left: 2px dashed var(--over-ink); }
   .meter .budget span { position: absolute; top: 22px; transform: translateX(-50%); font-size: 11px; color: var(--muted); white-space: nowrap; }
 
-  .incl h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 6px; }
   .stack { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--line); margin-bottom: 8px; }
   .rows { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
   .rows li { display: grid; grid-template-columns: 12px 1fr auto; gap: 2px 10px; align-items: baseline; font-size: 14px; }
@@ -158,22 +162,20 @@
 
   .ctas { margin-top: auto; display: grid; gap: 8px; grid-template-columns: 1fr 1fr; }
   .btn { display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center; text-decoration: none;
-         font: 700 15px/1.2 var(--font-display); border-radius: 12px; padding: 12px 10px; min-height: 48px; }
+         font: 700 15px/1.2 var(--font-display); border-radius: 10px; padding: 12px 10px; min-height: 48px; }
   .btn.primary { background: var(--cta); color: var(--on-cta); }
   .btn.primary:hover { background: var(--cta-hover); }
   .btn.secondary { border: 2px solid var(--brand); color: var(--brand); }
   .btn.secondary:hover { background: var(--surface-2); }
   .fine { font-size: 12px; color: var(--muted); margin: -4px 0 0; }
 
-  .empty { grid-column: 1 / -1; background: var(--surface); border-radius: var(--radius); padding: 28px; text-align: center; border: 1px solid var(--line); }
+  .empty { grid-column: 1 / -1; background: var(--surface); border-radius: 14px; padding: 28px; text-align: center; border: 1px solid var(--line); }
 
   /* How it works + footer */
-  .how { display: grid; gap: 16px; margin: 48px 0 0; grid-template-columns: 1fr; }
+  .how { display: grid; gap: 8px 32px; margin: 56px 0 0; padding-top: 24px; border-top: 1px solid var(--line); grid-template-columns: 1fr; }
   @media (min-width: 760px) { .how { grid-template-columns: repeat(3, 1fr); } }
-  .how div { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
-  .how h3 { margin: 0 0 4px; font: 700 18px var(--font-display); }
-  .how p { margin: 0; color: var(--muted); font-size: 14px; }
-  .how .n { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--sun); color: var(--night); font-weight: 800; margin-bottom: 8px; }
+  .how h2 { margin: 0 0 4px; font: 700 20px/1.2 var(--font-display); }
+  .how p { margin: 0 0 12px; color: var(--muted); font-size: 15px; max-width: 34em; }
   footer { color: var(--muted); font-size: 13px; padding: 32px 0 48px; }
   footer p { margin: 0 0 8px; max-width: 760px; }
   footer strong { color: var(--ink); }
@@ -189,15 +191,16 @@
        sizes="100vw" alt="" fetchpriority="high">
   <div class="wrap">
     <div class="topbar">
-      <a class="logo" href="./" aria-label="Budget Trip Finder home">
-        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="#F2A541"/><path d="M6 17c3-1 5-4 8-4s5 3 8 4" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/><circle cx="14" cy="9" r="2.6" fill="#fff"/></svg>
-        <span class="brand-name">Budget Trip Finder</span>
+      <a class="logo" href="./" aria-label="Far Enough home">
+        <!-- Logo concept from the brand brief: a dotted flight arc landing on the horizon, under a small sun. Not the final mark. -->
+        <svg width="34" height="28" viewBox="0 0 34 28" aria-hidden="true"><circle cx="24" cy="8" r="4.2" fill="#F2A541"/><path d="M4 22C8 8 19 6 28 22" stroke="#fff" stroke-width="2.2" stroke-dasharray="0.1 4.4" stroke-linecap="round" fill="none"/><path d="M1.5 23.5h31" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>
+        <span class="brand-name">Far Enough</span>
       </a>
+      <span class="descriptor">Whole-trip budgets from Toronto</span>
     </div>
     <div class="hero-copy">
-      <p class="eyebrow">Whole trips from Toronto</p>
-      <h1>Where can <span class="amt" id="heroAmt">$3,000</span> take you?</h1>
-      <p class="hero-sub">Give us one number for the whole trip. We price flights, a hotel and daily spending for every destination, then show you what fits.</p>
+      <h1>See how far <span class="hero-amt"><span class="cur" aria-hidden="true">$</span><input id="budget" name="budget" form="f" type="text" inputmode="numeric" autocomplete="off" pattern="[0-9, ]*" value="3,000" required aria-label="Total budget for the whole trip, in Canadian dollars"></span> goes.</h1>
+      <p class="hero-sub">Change the number to your total for the whole trip. We add up flights, a hotel and spending money for each place and show the ones that fit.</p>
     </div>
   </div>
   <p class="hero-credit" title="Bávaro beach, Punta Cana">Photo: Oleg Yunakov, <a href="https://commons.wikimedia.org/wiki/File:2023_-_Playa_Bavaro_Punta_Cana_-_08.jpg" target="_blank" rel="noopener">CC BY-SA 4.0</a></p>
@@ -206,15 +209,12 @@
 <main class="wrap">
   <section class="search" aria-label="Trip search">
     <form id="f">
-      <label class="field budget">Total budget (CAD)
-        <span class="money"><span aria-hidden="true">$</span><input name="budget" type="number" inputmode="numeric" min="100" step="50" value="3000" required></span>
-      </label>
       <label class="field">Adults<input name="adults" type="number" inputmode="numeric" min="1" max="9" value="2"></label>
       <label class="field">Children<input name="children" type="number" inputmode="numeric" min="0" max="9" value="0"></label>
       <label class="field">Nights<input name="nights" type="number" inputmode="numeric" min="1" max="30" placeholder="Longest"></label>
       <label class="field wide">Month<select name="month"><option value="">Any month</option></select></label>
       <label class="field wide">Comfort<select name="tier"><option value="budget">Budget (up to 3★)</option><option value="mid" selected>Mid (4★)</option><option value="upscale">Upscale (5★)</option></select></label>
-      <button class="go" type="submit">Find trips</button>
+      <button class="go" type="submit">Show trips</button>
     </form>
   </section>
 
@@ -225,9 +225,9 @@
   <div id="results"></div>
 
   <section class="how" aria-label="How it works">
-    <div><span class="n">1</span><h3>One budget, whole trip</h3><p>Flights for everyone, a hotel for every night and money for food and getting around, added up in Canadian dollars.</p></div>
-    <div><span class="n">2</span><h3>Honest ranges</h3><p>Every total shows a low, expected and high estimate, with a label saying how fresh each number is.</p></div>
-    <div><span class="n">3</span><h3>Compare, then go to the partner</h3><p>We don't sell trips. Each card links to a partner site where you check live prices and book directly with them.</p></div>
+    <div><h2>The whole trip, in one number</h2><p>Flights for everyone, a hotel for every night and money for food and getting around, added up in Canadian dollars.</p></div>
+    <div><h2>A range, not a teaser price</h2><p>Each total shows low, expected and high, and every line says how fresh its number is.</p></div>
+    <div><h2>We don't sell trips</h2><p>Each card links to a partner site. You check the live price there and book with them directly.</p></div>
   </section>
 
   <footer>
@@ -245,7 +245,7 @@ import { PHOTOS } from "./photos.js";
 const f = document.getElementById("f");
 const out = document.getElementById("results");
 const status = document.getElementById("status");
-const heroAmt = document.getElementById("heroAmt");
+const budgetIn = document.getElementById("budget");
 const fmt = (n) => Math.round(n).toLocaleString("en-CA");
 const money = (n) => `$${fmt(n)}`;
 const colors = { flights: "var(--flights)", lodging: "var(--lodging)", daily: "var(--daily)" };
@@ -286,7 +286,7 @@ function confText(c) {
 const stops = (n) => (n == null ? null : n === 0 ? "direct" : `${n} stop${n > 1 ? "s" : ""}`);
 
 const LABELS = {
-  flights: (p, req, t) => ["Flights", [`round trip for ${t}`, p.fare.airline, stops(p.fare.transfers)].filter(Boolean).join(" · ")],
+  flights: (p, req, t) => ["Flights", `round trip for ${t}${p.fare.airline ? ` on ${p.fare.airline}` : ""}${stops(p.fare.transfers) ? `, ${stops(p.fare.transfers)}` : ""}`],
   lodging: (p, req) => ["Hotel", `${p.nights} nights, ${roomsNeeded(req.adults, req.children)} room${roomsNeeded(req.adults, req.children) > 1 ? "s" : ""}`],
   daily: (p) => ["Daily spending", `food, local transport, extras for ${p.nights + 1} days`],
 };
@@ -324,7 +324,7 @@ function card(p, req, data) {
     el("span", { class: `fit ${p.fit}`, title: p.fit === "stretch" ? "Fits only if prices land at the low end" : null },
       p.fit === "within" ? "✓ Fits your budget" : "Stretch"),
     el("div", { class: "place" }, el("h2", { id: `t-${p.dest.code}` }, p.dest.name),
-      el("p", {}, [country(p.dest.country), ph?.tagline].filter(Boolean).join(" · "))),
+      el("p", { class: "country" }, country(p.dest.country)), ph ? el("p", {}, ph.tagline) : null),
   );
   c.append(fig);
 
@@ -347,7 +347,7 @@ function card(p, req, data) {
   b.append(meter(p, req.budget));
 
   // What's included
-  const incl = el("section", { class: "incl" }, el("h3", {}, "What's included"));
+  const incl = el("section", { class: "incl", "aria-label": "What's included" });
   const stack = el("div", { class: "stack", "aria-hidden": "true" });
   const rows = el("ul", { class: "rows" });
   const how = el("ul");
@@ -383,10 +383,10 @@ function card(p, req, data) {
   // Outbound partner links (we refer, we don't sell)
   const ctas = el("div", { class: "ctas" });
   const hotel = hotelLinkFor(p.dest, p.fare, req);
-  if (p.fare.link) ctas.append(el("a", { class: "btn primary", href: p.fare.link, target: "_blank", rel: "noopener sponsored" }, "See flights on Aviasales ↗"));
-  if (hotel) ctas.append(el("a", { class: `btn ${p.fare.link ? "secondary" : "primary"}`, href: hotel.url, target: "_blank", rel: "noopener sponsored" }, `See hotels on ${hotel.partner} ↗`));
+  if (p.fare.link) ctas.append(el("a", { class: "btn primary", href: p.fare.link, target: "_blank", rel: "noopener sponsored" }, "See flights on Aviasales", el("span", { class: "sr-only" }, " (opens in a new tab)")));
+  if (hotel) ctas.append(el("a", { class: `btn ${p.fare.link ? "secondary" : "primary"}`, href: hotel.url, target: "_blank", rel: "noopener sponsored" }, `See hotels on ${hotel.partner}`, el("span", { class: "sr-only" }, " (opens in a new tab)")));
   if (ctas.childElementCount < 2) ctas.style.gridTemplateColumns = "1fr";
-  b.append(ctas, el("p", { class: "fine" }, "Prices are estimates. Opens the partner site, where you check live prices and book. May be an affiliate link."));
+  b.append(ctas, el("p", { class: "fine" }, "Prices are estimates. Both buttons open the partner's site in a new tab, where you check the live price and book. They may be affiliate links."));
 
   c.append(b);
   return c;
@@ -397,12 +397,17 @@ const dests = prepare(data, today);
 const months = [...new Set(dests.flatMap((d) => d.fares.map((f) => f.month)))].sort();
 for (const m of months) f.elements.month.append(el("option", { value: m }, monthName(m)));
 document.getElementById("fresh").textContent =
-  `Trip data updated ${data.generatedAt.slice(0, 10)} · ${dests.length} destinations from Toronto.`;
+  `Trip data updated ${data.generatedAt.slice(0, 10)}, covering ${dests.length} destinations from Toronto.`;
 
 const sortSel = document.querySelector('select[name="sort"]');
-function updateHero() {
-  const v = Number(f.elements.budget.value);
-  heroAmt.textContent = v > 0 ? money(v) : "your budget";
+const measure = document.createElement("canvas").getContext("2d");
+const budgetValue = () => Number(budgetIn.value.replace(/[^0-9]/g, "")) || null;
+function sizeBudget() {
+  // Let the headline field grow and shrink with the number typed into it.
+  const cs = getComputedStyle(budgetIn);
+  measure.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  if ("letterSpacing" in measure) measure.letterSpacing = cs.letterSpacing;
+  budgetIn.style.width = `${Math.ceil(measure.measureText(budgetIn.value || "000").width) + 4}px`;
 }
 
 function run(e) {
@@ -410,10 +415,15 @@ function run(e) {
   const fd = new FormData(f);
   const num = (k) => (fd.get(k) === "" ? null : Number(fd.get(k)));
   const req = {
-    budget: num("budget"), adults: num("adults") ?? 1, children: num("children") ?? 0,
+    budget: budgetValue(), adults: num("adults") ?? 1, children: num("children") ?? 0,
     month: fd.get("month") || null, nights: num("nights"), tier: fd.get("tier"), sort: sortSel.value,
   };
-  updateHero();
+  sizeBudget();
+  if (!(req.budget >= 100)) {
+    status.replaceChildren("Type a budget of at least $100 in the headline");
+    out.replaceChildren();
+    return;
+  }
   let results;
   try {
     results = search(dests, req, today, data.constants).slice(0, 15);
@@ -425,18 +435,28 @@ function run(e) {
   out.replaceChildren(...results.map((p) => card(p, req, data)));
   const within = results.filter((p) => p.fit === "within").length;
   if (!results.length) {
-    status.replaceChildren("Nothing fits this budget yet", el("small", {}, "Try fewer nights, a lower comfort level, or a bigger budget."));
-    out.append(el("div", { class: "empty" }, "No whole trip fits ", money(req.budget), " with these settings."));
+    status.replaceChildren(`Nothing fits ${money(req.budget)} yet`, el("small", {}, "Try a bigger budget, fewer nights or the Budget comfort level."));
+    out.append(el("div", { class: "empty" }, `No whole trip from Toronto fits ${money(req.budget)} with these settings. Raise the number in the headline to see what opens up.`));
     return;
   }
   status.replaceChildren(
     `${within} trip${within === 1 ? "" : "s"} fit ${money(req.budget)}`,
-    el("small", {}, `${results.length - within} more are a stretch · ${req.month ? monthName(req.month) : "any month"} · estimates in CAD, confirm on the partner site`),
+    el("small", {}, `${results.length - within ? `Plus ${results.length - within} that fit only if prices land low. ` : ""}${req.month ? monthName(req.month) : "Any month"}, estimates in CAD.`),
   );
 }
 f.addEventListener("submit", run);
-f.elements.budget.addEventListener("input", updateHero);
+// Typing in the headline updates the results after a short pause.
+let typing;
+budgetIn.addEventListener("input", () => {
+  sizeBudget();
+  clearTimeout(typing);
+  typing = setTimeout(() => { if (budgetValue() >= 100) run(); }, 400);
+});
+// Show the amount with thousands separators once the person is done typing.
+budgetIn.addEventListener("blur", () => { const v = budgetValue(); if (v) { budgetIn.value = fmt(v); sizeBudget(); } });
 sortSel.addEventListener("change", () => run());
+document.fonts.ready.then(sizeBudget);
+addEventListener("resize", sizeBudget);
 run();
 </script>
 </body>
