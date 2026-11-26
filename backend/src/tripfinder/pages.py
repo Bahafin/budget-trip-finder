@@ -15,8 +15,10 @@ from __future__ import annotations
 
 import html
 import json
+import math
 import os
 import shutil
+import statistics
 from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
@@ -24,9 +26,11 @@ from decimal import Decimal
 from pathlib import Path
 from string import Template
 from typing import Any
+from urllib.parse import urlencode
 
 from .config import ROOT
 from .engine import (
+    CHILD_DAILY_SHARE,
     DAILY_BASE_CAD,
     DestinationData,
     Fare,
@@ -38,6 +42,7 @@ from .engine import (
     rank,
     rooms_needed,
 )
+from .gate_a import summary as gate_a_summary
 from .money import Money, PriceRange
 
 # ---- Brand and site settings ------------------------------------------------------------------------------
@@ -88,6 +93,8 @@ MONTHS = ["january", "february", "march", "april", "may", "june", "july", "augus
 BANNED_PHRASES = ("book now", "book with us", "our price", "buy now", "deal", "deals", "lowest price guaranteed", "reserve now")
 
 TEMPLATES = Path(__file__).parent / "templates"
+CHECKS_PATH = ROOT / "docs" / "gate-a" / "sheet.csv"  # Gate A hand checks, shown on the method page
+METHOD_PATH = f"{ORIGIN_SLUG}/how-we-estimate/"
 
 
 # ---- Snapshot loading ---------------------------------------------------------------------------------------
@@ -221,6 +228,20 @@ class Fmt:
         return f'<span class="lo">{self.amt(r.low)}</span> <b>{self.amt(r.expected)}</b> <span class="lo">{self.amt(r.high)}</span>'
 
 
+def pct(x: float) -> str:
+    return f"{round(abs(x) * 100)}%"
+
+
+def pct_signed(x: float) -> str:
+    v = round(x * 100)
+    return f"{'+' if v > 0 else '−' if v < 0 else ''}{abs(v)}%"
+
+
+def budget_for(p: Package) -> int:
+    """A round budget the trip fits: its expected total rounded up to the next $500."""
+    return math.ceil(p.total.expected.amount / 500) * 500
+
+
 def budget_amt(n: float) -> str:
     """A budget the reader chose (not a price), marked so the dated-amount test can tell it apart."""
     return f'<span class="bud" data-budget>${round(n):,}</span>'
@@ -349,6 +370,7 @@ def render(page: Page, snap: Snapshot, site_indexable: bool) -> str:
         asof_long=esc(day_long(snap.today)),
         finder=esc(root),
         hub=esc(rel(page.path, ORIGIN_SLUG + "/")),
+        method=esc(rel(page.path, METHOD_PATH)),
     )
 
 
@@ -375,19 +397,6 @@ INCLUDED = (
     "doesn't include them</li><li>Travel insurance, tours, tips</li><li>Getting to and parking at the airport</li></ul></div>"
     "</div></section>"
 )
-
-
-def how_sure(fmt: Fmt) -> str:
-    return (
-        '<section class="box"><h2>How sure are these numbers?</h2>'
-        "<p>Flights come from cached fares: prices other travellers saw in recent searches, so the price you find can differ. "
-        "We add a margin above the cached fare for the expected figure and more for the high one. Hotel prices are a sample "
-        "of real rates for the same month, adjusted for busy dates. Day-to-day spending is our estimate from each country's "
-        "price level compared with Canada (World Bank data), and it's the least checked part.</p>"
-        "<p>When we last checked by hand (25 November 2026, three trips), whole-trip estimates were within about −8% to +4% "
-        "of real prices on Google Flights and Booking.com, and every real total fell inside our range. Holiday dates tend to run low.</p>"
-        "</section>"
-    )
 
 
 def advisory_block(snap: Snapshot, d: DestinationData) -> str:
@@ -444,7 +453,10 @@ def method_list(fmt: Fmt, pkgs: dict[str, Package]) -> str:
     return '<ul class="method">' + "".join(items) + "</ul>"
 
 
-def partner_ctas(snap: Snapshot, d: DestinationData, fare: Fare, adults: int = ADULTS, children: int = 0) -> str:
+PARTNER_NOTE = '<p class="fine">Partner buttons open the partner site, where you check live prices and book with them. May be affiliate links.</p>'
+
+
+def partner_ctas(snap: Snapshot, d: DestinationData, fare: Fare, adults: int = ADULTS, children: int = 0, note: bool = True) -> str:
     out = []
     url = flight_link(snap, d.code, fare, adults, children)
     if url:
@@ -454,12 +466,16 @@ def partner_ctas(snap: Snapshot, d: DestinationData, fare: Fare, adults: int = A
         out.append(sponsored(h["url"], f"See hotels on {h['partner']}"))
     if not out:
         return ""
-    return ('<div class="ctas">' + "".join(out) + '</div><p class="fine">Opens the partner site, where you check live prices '
-            "and book with them. May be an affiliate link.</p>")
+    return '<div class="ctas">' + "".join(out) + "</div>" + (PARTNER_NOTE if note else "")
 
 
-def finder_link(page_path: str, label: str = "Try your own budget, dates and group size") -> str:
-    return f'<p><a class="btn primary wide" href="{esc(rel(page_path, ""))}">{esc(label)}</a></p>'
+def finder_link(page_path: str, params: dict[str, Any] | None = None) -> str:
+    """Button into the trip finder, pre-filled with this page's trip (index.html reads these query parameters)."""
+    href = rel(page_path, "")
+    if params:
+        href += "?" + urlencode({k: v for k, v in params.items() if v is not None})
+    label = "Change the budget, dates or group size" if params else "Try your own budget, dates and group size"
+    return f'<p><a class="btn primary wide" href="{esc(href)}">{esc(label)}</a></p>'
 
 
 def signup_box(topic: str) -> str:
@@ -476,6 +492,7 @@ class Builder:
     snap: Snapshot
     pricer: Pricer
     photos: dict[str, dict[str, str]]
+    checks: dict[str, Any] | None = None  # gate_a.summary(), or None
     fmt: Fmt = field(init=False)
     pages: list[Page] = field(default_factory=list)
 
@@ -589,17 +606,18 @@ class Builder:
             f"<h2>Cheapest {esc(ORIGIN_NAME)}–{esc(nm)} fares we've seen</h2><p>Per person, return, CAD. Cached fares change quickly.</p>",
             ('<div class="scroll"><table><thead><tr><th>Dates</th><th>Nights</th><th>Airline</th><th>Fare</th><th>Seen on</th><th></th></tr></thead>'
             f"<tbody>{fare_rows}</tbody></table></div>"),
+            self.faq_hub(d, by_month, head_month, mid, bud),
             INCLUDED,
-            how_sure(f),
+            self.how_sure(path, d),
             advisory_block(self.snap, d),
-            finder_link(path),
+            finder_link(path, self.finder_params(lead, head_month, 'mid' if mid else 'budget')),
             signup_box(esc(f"{nm} from {ORIGIN_NAME}")),
             self.related(d, path, head_month),
         ]
         gate = len(months) >= GATE_HUB_MONTHS
         self.pages.append(Page(
             path=path,
-            title=f"{nm} trip cost from {ORIGIN_NAME}: flights, hotel and daily spending in CAD",
+            title=f"{nm} trip cost from {ORIGIN_NAME}: a week for two in CAD",
             description=f"What a week in {nm} really costs from {ORIGIN_NAME} for two: flights, hotel and day-to-day spending as dated CAD estimates.",
             h1=f"{nm} from {ORIGIN_NAME}: what a trip really costs",
             eyebrow=f"{COUNTRIES.get(d.country_code, d.country_code)} · estimated {day_long(self.snap.today)}",
@@ -687,14 +705,14 @@ class Builder:
             f"<tbody>{fare_rows}</tbody></table></div>"),
             (f"<p>Other months: {siblings}</p>" if siblings else ""),
             INCLUDED,
-            how_sure(f),
+            self.how_sure(path, d),
             advisory_block(self.snap, d),
-            finder_link(path),
+            finder_link(path, self.finder_params(lead, month, 'mid' if 'mid' in pk else 'budget')),
             signup_box(esc(f"{nm} from {ORIGIN_NAME}")),
         ]
         self.pages.append(Page(
             path=path,
-            title=f"{nm} from {ORIGIN_NAME} in {month_label(month)}: trip cost for two in CAD",
+            title=f"{nm} from {ORIGIN_NAME} in {month_label(month)}: cost for two",
             description=f"What a trip to {nm} from {ORIGIN_NAME} costs in {month_label(month)}: flights, hotel and daily spending, dated estimates in CAD.",
             h1=f"{nm} from {ORIGIN_NAME} in {month_label(month)}",
             eyebrow=f"{COUNTRIES.get(d.country_code, d.country_code)} · estimated {day_long(self.snap.today)}",
@@ -736,7 +754,7 @@ class Builder:
             f'<h3><a href="{esc(rel(page_path, self.dest_month_path(d, p.month)))}">{esc(name_of(d))}</a> <span class="tag {p.fit}">{tag}</span></h3>'
             f'<p class="when">{esc(day(p.fare.depart))}–{esc(day(p.fare.ret))} · {p.nights} nights</p>'
             f'<p class="big">{f.amt(p.total.expected)}</p><p class="fine">likely {f.rng(p.total)}</p>'
-            f'<ul class="rows">{comps}</ul>{warn}{partner_ctas(self.snap, d, p.fare, adults, children)}</div></article>'
+            f'<ul class="rows">{comps}</ul>{warn}{partner_ctas(self.snap, d, p.fare, adults, children, note=False)}</div></article>'
         )
 
     def month_budget(self, month: str, budget: int) -> None:
@@ -765,7 +783,7 @@ class Builder:
         for label, fits in (("With a mid-range hotel (4★)", fits_mid), ("With a budget hotel (up to 3★)", fits_bud)):
             body.append(f"<h2>{esc(label)}</h2>")
             if fits:
-                body.append('<div class="grid">' + "".join(self.result_card(path, p) for p in fits[:9]) + "</div>")
+                body.append('<div class="grid">' + "".join(self.result_card(path, p) for p in fits[:9]) + "</div>" + PARTNER_NOTE)
             else:
                 body.append("<p>Nothing fits or comes close at this budget.</p>")
         if over_bud:
@@ -794,7 +812,7 @@ class Builder:
             "<li><b>Flights:</b> cheapest cached return fare for those dates, plus a margin.</li>"
             "<li><b>Hotels:</b> a sample of real hotel prices for the month, by comfort level.</li>"
             "<li><b>Day-to-day:</b> our estimate from each country's price level compared with Canada.</li></ul></section>"),
-            INCLUDED, how_sure(f), finder_link(path), signup_box(f"trips under {budget_amt(budget)} from {esc(ORIGIN_NAME)}"),
+            INCLUDED, self.how_sure(path), finder_link(path, {"budget": budget, "adults": ADULTS, "month": month, "tier": "mid"}), signup_box(f"trips under {budget_amt(budget)} from {esc(ORIGIN_NAME)}"),
         ]
         count = len(fits_mid) + len([p for p in fits_bud if p.destination.code not in {q.destination.code for q in fits_mid}])
         gate = count >= GATE_BUDGET_RESULTS
@@ -836,7 +854,7 @@ class Builder:
                 f"<h2>By budget</h2><ul>{budgets}</ul>"
                 f"<h2>About a week in {esc(month_label(month))}, cheapest first</h2>"
                 '<div class="scroll"><table><thead><tr><th>Destination</th><th>Nights</th><th>Total, budget hotel</th><th>Total, mid-range hotel</th></tr></thead>'
-                f"<tbody>{table}</tbody></table></div>{INCLUDED}{how_sure(f)}{finder_link(path)}")
+                f"<tbody>{table}</tbody></table></div>{INCLUDED}{self.how_sure(path)}{finder_link(path, {'adults': ADULTS, 'month': month})}")
         gate = len(rows) >= GATE_BUDGET_RESULTS
         self.pages.append(Page(
             path=path, title=f"Trips from {ORIGIN_NAME} in {month_label(month)}: what a week costs for two",
@@ -850,7 +868,6 @@ class Builder:
 
     def march_break(self) -> None:
         path = f"{ORIGIN_SLUG}/march-break/"
-        f = self.fmt
         upcoming = [(y, s) for y, s in sorted(MARCH_BREAK.items()) if s + timedelta(days=4) >= self.snap.today]
         if not upcoming:
             return
@@ -875,16 +892,16 @@ class Builder:
                     body.append(f"<h2>What fits {budget_amt(b)} for {esc(group)} ({esc(TIER_SHORT[t])} hotel)</h2>")
                     if fits:
                         sections += 1
-                        body.append('<div class="grid">' + "".join(self.result_card(path, p, adults, children) for p in fits[:6]) + "</div>")
+                        body.append('<div class="grid">' + "".join(self.result_card(path, p, adults, children) for p in fits[:6]) + "</div>" + PARTNER_NOTE)
                     else:
                         body.append("<p>Nothing fits or comes close yet.</p>")
         body += [(f"<p class=\"fine\">Family of four: two adults and two children sharing one room; children's day-to-day costs counted at 70% of an adult's. "
                  f"Departures {esc(day(date.fromisoformat(w['departFrom'])))}–{esc(day(date.fromisoformat(w['departTo'])))}, "
                  f"returns {esc(day(date.fromisoformat(w['retFrom'])))}–{esc(day(date.fromisoformat(w['retTo'])))}.</p>"),
-                 INCLUDED, how_sure(f), finder_link(path), signup_box(esc(f"March break {year} from {ORIGIN_NAME}"))]
+                 INCLUDED, self.how_sure(path), finder_link(path, {"budget": MARCH_BREAK_BUDGETS[-1], "adults": adults, "children": children, "month": month, "nights": 7}), signup_box(esc(f"March break {year} from {ORIGIN_NAME}"))]
         gate = len(dests) >= GATE_BUDGET_RESULTS and sections > 0
         self.pages.append(Page(
-            path=path, title=f"March break {year} from {ORIGIN_NAME}: what fits $3,000 or $5,000 for a family",
+            path=path, title=f"March break {year} from {ORIGIN_NAME}: trips for a family of four",
             description=f"Whole-trip estimates for Ontario's March break {year} from {ORIGIN_NAME} for a family of four: flights, hotel and daily spending in CAD.",
             h1=f"March break {year} from {ORIGIN_NAME}: what fits your budget", eyebrow=f"{BRAND_DESCRIPTOR} · estimated {day_long(self.snap.today)}",
             body="".join(body), crumbs=[(f"From {ORIGIN_NAME}", f"{ORIGIN_SLUG}/"), (f"March break {year}", path)],
@@ -924,12 +941,155 @@ class Builder:
                 f"day-to-day spending for two, in CAD, estimated on {esc(day_long(self.snap.today))}.</p>"
                 f"<h2>By month and budget</h2><ul>{month_links}{mb}</ul>"
                 f'<h2>Destinations, cheapest week first</h2><div class="tiles">{"".join(c for _, c in cards)}</div>'
-                f"{INCLUDED}{finder_link(path)}")
+                f"{INCLUDED}<p><a href=\"{esc(rel(path, METHOD_PATH))}\">How we estimate these numbers, and how accurate they've been</a></p>"
+                f"{finder_link(path)}")
         self.pages.append(Page(
-            path=path, title=f"Trips from {ORIGIN_NAME}: what a week really costs, by destination and budget",
+            path=path, title=f"Trip costs from {ORIGIN_NAME} by destination and budget, in CAD",
             description=f"Whole-trip cost estimates from {ORIGIN_NAME} for {len(cards)} destinations, by month and budget, in CAD.",
             h1=f"Trips from {ORIGIN_NAME}, all in", eyebrow=BRAND_DESCRIPTOR, body=body,
             crumbs=[(f"From {ORIGIN_NAME}", path)], gate=True,
+        ))
+
+    # Accuracy, questions and the method page
+
+    def finder_params(self, p: Package, month: str, tier: str) -> dict[str, Any]:
+        return {"budget": budget_for(p), "adults": ADULTS, "month": month, "nights": p.nights, "tier": tier}
+
+    def trips_checked(self, code: str) -> list[dict[str, Any]]:
+        return [t for t in (self.checks or {}).get("trips", []) if t["code"] == code]
+
+    def how_sure(self, path: str, d: DestinationData | None = None) -> str:
+        out = [('<section class="box"><h2>How sure are these numbers?</h2>'
+               "<p>Flights come from cached fares: prices other travellers saw in recent searches, so the price you find can differ. "
+               "We add a margin above the cached fare for the expected figure and more for the high one. Hotel prices are a sample "
+               "of real rates for the same month, adjusted for busy dates. Day-to-day spending is our estimate from each country's "
+               "price level compared with Canada (World Bank data), and it's the least checked part.</p>")]
+        c = self.checks
+        if c:
+            worst = max(("flights", "hotel"), key=lambda k: c[k]["median_abs"])
+            out.append(
+                f"<p>On {esc(day_long(date.fromisoformat(c['checked_on'])))} we checked {c['n']} trips by hand against Google Flights "
+                f"and Booking.com. Our expected whole-trip total was a median of {pct(c['total']['median_abs'])} away from the real price, "
+                f"and the real total fell inside our range for {c['total']['inside']} of the {c['n']}. The least accurate part was "
+                f"{'the hotel' if worst == 'hotel' else 'the flights'} (a median of {pct(c[worst]['median_abs'])} off).</p>")
+            mine = self.trips_checked(d.code) if d else []
+            if mine:
+                parts = "; ".join(
+                    f"{esc(day_long(date.fromisoformat(t['depart'])))}, {t['nights']} nights: {pct(t['total_err'])} "
+                    f"{'under' if t['total_err'] < 0 else 'over'} the real total" for t in mine)
+                out.append(f"<p>For {esc(name_of(d))} we checked {len(mine)} trip{'s' if len(mine) > 1 else ''}: {parts}. "
+                           "These checks used the estimates we showed on that day.</p>")
+        out.append(f'<p><a href="{esc(rel(path, METHOD_PATH))}">How we estimate, and every trip we checked</a></p></section>')
+        return "".join(out)
+
+    def faq_hub(self, d: DestinationData, by_month: dict[str, dict[str, Package]], head_month: str,
+                mid: Package | None, bud: Package | None) -> str:
+        """Questions people ask about a destination, answered only from the snapshot and the engine."""
+        f = self.fmt
+        nm = name_of(d)
+        lead = mid or bud
+        tier = "mid" if mid else "budget"
+        qa: list[tuple[str, str]] = []
+        a = (f"About {f.amt(lead.total.expected)} for {lead.nights} nights in {esc(month_label(head_month))} with a "
+             f"{TIER_SHORT[tier]} hotel, in the cheapest month we have fares for")
+        if mid and bud:
+            a += f", or about {f.amt(bud.total.expected)} with a budget hotel"
+        qa.append((f"How much does a week in {nm} cost for two from {ORIGIN_NAME}?",
+                   a + ". That's return flights for two, the hotel and day-to-day spending, as an estimate in CAD."))
+        same_tier = {m: p[tier] for m, p in by_month.items() if tier in p}
+        if len(same_tier) >= 2:
+            cheap = min(same_tier, key=lambda m: same_tier[m].total.expected.amount)
+            dear = max(same_tier, key=lambda m: same_tier[m].total.expected.amount)
+            ms = sorted(same_tier)
+            qa.append((f"What's the cheapest month to go to {nm} from {ORIGIN_NAME}?",
+                       (f"Of the months we have fares for ({esc(month_label(ms[0]))} to {esc(month_label(ms[-1]))}), "
+                       f"{esc(month_label(cheap))} is the cheapest: about {f.amt(same_tier[cheap].total.expected)} for "
+                       f"{same_tier[cheap].nights} nights with a {TIER_SHORT[tier]} hotel. {esc(month_label(dear))} is the most "
+                       f"expensive, at about {f.amt(same_tier[dear].total.expected)} for {same_tier[dear].nights} nights. "
+                       "Cached fares only reach about three months ahead, so later months aren't here yet.")))
+        fares = [x for x in d.fares if 3 <= x.nights <= 14]
+        if fares:
+            x0 = min(fares, key=lambda x: (x.price.amount, x.depart))
+            middle = Money.of(statistics.median(float(x.price.amount) for x in fares))
+            qa.append((f"How much is a return flight from {ORIGIN_NAME} to {nm}?",
+                       (f"The cheapest return fare we've seen is {f.amt(x0.price)} per person ({esc(day(x0.depart))} to {esc(day(x0.ret))}"
+                       f"{', ' + esc(stops(x0)) if stops(x0) else ''}), seen on {esc(day_long(x0.found_on))}. The middle fare of the "
+                       f"{len(fares)} we have cached is {f.amt(middle)}. Check the live price: cached fares change quickly.")))
+        if d.price_level is not None:
+            per = {t: Money.of(DAILY_BASE_CAD[t]) * d.price_level for t in ("budget", "mid", "upscale")}
+            qa.append((f"How much spending money do I need in {nm}?",
+                       (f"We estimate about {f.amt(per['budget'])} per adult per day on a budget, {f.amt(per['mid'])} mid-range and "
+                       f"{f.amt(per['upscale'])} upscale, for food, local transport and modest entry fees. For the {lead.nights}-night "
+                       f"trip above, that's about {f.amt(lead.components[2].total.expected)} for two. It's the least checked part of our "
+                       "estimate, so leave some room.")))
+        items = "".join(f"<h3>{esc(q)}</h3><p>{a}</p>" for q, a in qa)
+        return f'<section class="faq"><h2>Common questions about {esc(nm)} from {esc(ORIGIN_NAME)}</h2>{items}</section>'
+
+    def method_page(self) -> None:
+        path = METHOD_PATH
+        f = self.fmt
+        c = self.checks
+        daily = " · ".join(f"{esc(TIER_SHORT[t])}: {f.amt(DAILY_BASE_CAD[t])}" for t in ("budget", "mid", "upscale"))
+        body = [
+            ('<p class="answer">Every total on this site is an estimate of the whole trip: return flights for everyone, a hotel room '
+             "for every night and day-to-day spending, added up in Canadian dollars and shown as a range (low, expected, high). "
+             f"The numbers are rebuilt every day from the data we hold. The latest refresh was on {esc(day_long(self.snap.today))}.</p>"),
+            ("<h2>Flights</h2><p>We use cached return fares from Toronto (Travelpayouts/Aviasales): prices other travellers saw in recent "
+            "searches, each with the date it was seen. For a trip, we take the cheapest cached fare for the dates and add a margin for the "
+            "expected figure and a bigger one for the high figure, because cached fares are often gone by the time you search. "
+            "Fares only reach about three months ahead.</p>"),
+            ("<h2>Hotels</h2><p>For each destination and month we sample real hotel rates (LiteAPI) and keep the low, middle and high "
+            "price per night for three comfort levels: budget (up to 3★), mid-range (4★) and upscale (5★). We drop spiky quotes and "
+            "all-inclusive resorts so the sample stays comparable, and adjust for busy dates. The page shows how many hotels each "
+            "figure comes from.</p>"),
+            ("<h2>Day-to-day spending</h2><p>Food, local transport and modest entry fees. We start from a Canadian daily amount per "
+             f"adult ({daily}) and scale it by each country's price level compared with Canada (World Bank International Comparison "
+             f"Program, CC BY 4.0). Children count at {round(CHILD_DAILY_SHARE * 100)}% of an adult. This is the part we can't check against a booking site, so treat "
+             "it as the roughest number.</p>"),
+            ("<h2>Fits, stretch and doesn't fit</h2><p>A trip <b>fits</b> when the expected total is within your budget. It's a "
+            "<b>stretch</b> when the expected total is over your budget but the low end of the range is under it: it works only if "
+            "prices land near the low end. Anything else doesn't fit, and we say what it would take.</p>"),
+        ]
+        if c:
+            rows = "".join(
+                f"<tr><th scope=\"row\">{label}</th><td>{pct_signed(c[k]['median'])}</td><td>{pct(c[k]['median_abs'])}</td>"
+                f"<td>{pct(c[k]['p90_abs'])}</td><td>{c[k]['inside']} of {c['n']}</td></tr>"
+                for k, label in (("flights", "Flights (per person)"), ("hotel", "Hotel (per night)"), ("total", "Whole trip")))
+            names = {d.code: name_of(d) for d in self.snap.dests}
+            trips = "".join(
+                f"<tr><td>{esc(names.get(t['code'], t['code']))}</td><td>{esc(day_long(date.fromisoformat(t['depart'])))}</td>"
+                f"<td>{t['nights']}</td><td>{'yes' if t['holiday'] else ''}</td><td>{pct_signed(t['total_err'])}</td>"
+                f"<td>{'yes' if t['inside'] else 'no'}</td></tr>"
+                for t in sorted(c["trips"], key=lambda t: (names.get(t["code"], t["code"]), t["depart"])))
+            body += [
+                (f"<h2>How accurate is it?</h2><p>On {esc(day_long(date.fromisoformat(c['checked_on'])))} we picked {c['n']} trips the "
+                 "site would really show (a mix of destinations, months, group sizes and hotel levels, including holiday dates) and "
+                 "looked up the real price of each on Google Flights and Booking.com. Error is our expected figure minus the real price, "
+                 "as a share of the real price: negative means we were too low.</p>"),
+                ('<div class="scroll"><table><thead><tr><th></th><th>Median error</th><th>Median size of error</th>'
+                 "<th>9 in 10 trips within</th><th>Real price inside our range</th></tr></thead>"
+                 f"<tbody>{rows}</tbody></table></div>"),
+                ("<p>Day-to-day spending is our estimate on both sides of this check, so it isn't tested here. Hotels are the least "
+                 "accurate part: a booking site's first page and our sample can be far apart for resort areas.</p>"),
+                "<h3>Every trip we checked</h3>",
+                ('<div class="scroll"><table><thead><tr><th>Destination</th><th>Departing</th><th>Nights</th><th>Holiday</th>'
+                 f"<th>Whole-trip error</th><th>Inside our range</th></tr></thead><tbody>{trips}</tbody></table></div>"),
+            ]
+        body += [
+            ("<h2>What we leave out</h2><ul><li>All-inclusive meal plans: our hotel prices are for the room</li><li>Checked bags, "
+             "if the fare doesn't include them</li><li>Travel insurance, tours and tips</li><li>Getting to and parking at the airport</li>"
+             "<li>Resort fees the hotel doesn't list in advance</li></ul>"),
+            ("<h2>What we don't do</h2><p>We don't sell trips or take payments. Prices are estimates, not quotes: the partner's site "
+             "shows the price you'll actually pay, and you book and pay there. Some partner links may earn us a commission; partners "
+             "don't pay for placement. No number on this site is written by an AI "
+             "model: they all come from the data and the calculation described here.</p>"),
+            finder_link(path),
+        ]
+        self.pages.append(Page(
+            path=path, title=f"How we estimate trip costs from {ORIGIN_NAME}",
+            description="How the whole-trip estimates are made (flights, hotels, daily spending), what they leave out, and the results of our hand checks against real prices.",
+            h1="How we estimate, and how accurate we've been", eyebrow=f"{BRAND_DESCRIPTOR} · updated {day_long(self.snap.today)}",
+            body="".join(body), crumbs=[(f"From {ORIGIN_NAME}", f"{ORIGIN_SLUG}/"), ("How we estimate", path)], gate=True, article=True,
         ))
 
     def build_all(self) -> list[Page]:
@@ -943,20 +1103,21 @@ class Builder:
             for b in BUDGETS:
                 self.month_budget(m, b)
         self.march_break()
+        self.method_page()
         return self.pages
 
 
 # ---- Writing -----------------------------------------------------------------------------------------------
 
 def generate(snapshot_path: Path | None = None, site_dir: Path | None = None, indexable: bool | None = None,
-             manifest_path: Path | None = None) -> dict[str, int]:
+             manifest_path: Path | None = None, checks_path: Path | None = None) -> dict[str, int]:
     site_dir = site_dir or ROOT / "site"
     snapshot_path = snapshot_path or site_dir / "data.json"
     manifest_path = manifest_path or site_dir / "tests" / "pages-manifest.json"
     if indexable is None:
         indexable = os.environ.get("TRIPFINDER_INDEXABLE", "").lower() == "true"
     snap = load_snapshot(snapshot_path)
-    builder = Builder(snap, Pricer(snap), load_photos(site_dir / "photos.js"))
+    builder = Builder(snap, Pricer(snap), load_photos(site_dir / "photos.js"), gate_a_summary(checks_path or CHECKS_PATH))
     pages = builder.build_all()
     out_root = site_dir / ORIGIN_SLUG
     if out_root.exists():

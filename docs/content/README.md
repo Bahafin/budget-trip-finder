@@ -1,6 +1,17 @@
 # Content and SEO plan
 
-Written 2026-11-25. Working name "Budget Trip Finder" until the brand is chosen (`docs/brand/`). Nothing here is published; the site stays `noindex` until launch.
+Written 2026-11-25. Brand: **Far Enough** (pages say "Budget Trip Finder" until farenough.ca is registered). Nothing here is published; the site stays `noindex` until launch.
+
+**Update 2026-11-26:**
+- **Status:** the page generator is built and runs daily (109 pages, all noindex), and Gate A passed (median 11% whole-trip error over 50 trips).
+- **Skill review:** the plan was reviewed with the `programmatic-seo`, `seo-audit` and `ai-seo` skills. What changed is in [seo-strategy.md §7](seo-strategy.md).
+- **Generator additions:** a "How we estimate" page with the Gate A results, per-destination check results, and "Common questions" on destination pages.
+- **New docs:** [ai-visibility.md](ai-visibility.md) (prompts to track, getting cited), [launch-seo-checklist.md](launch-seo-checklist.md) (what must be true before indexing) and a drafted spending-money guide.
+
+**The three things that matter most before launch:**
+1. Link the home page and the trip finder results to `/from-toronto/`. Today the pages are orphans.
+2. The owner's About page.
+3. The owner's own paragraph on the top destination pages.
 
 | File | What it is |
 |---|---|
@@ -8,7 +19,10 @@ Written 2026-11-25. Working name "Budget Trip Finder" until the brand is chosen 
 | [programmatic-pages.md](programmatic-pages.md) | Spec for auto-generated destination and month pages from `site/data.json`: URLs, templates, indexing gates, schema.org, guardrails |
 | [content-calendar.md](content-calendar.md) | 8 weeks (30 Nov 2026 – 24 Jan 2027) of articles, short videos and community posts with hooks and community rules |
 | [samples/cancun-from-toronto-cost.md](samples/cancun-from-toronto-cost.md) | Sample destination cost breakdown (numbers from the engine, estimated 2026-11-25) |
-| [samples/where-2000-gets-two-january.md](samples/where-2000-gets-two-january.md) | Sample "where $2,000 gets two people in January" list (same data) |
+| [samples/where-2000-gets-two-january.md](samples/where-2000-gets-two-january.md) | Sample "where $2,000 gets two people in January" list (same data). **Superseded:** the generated page `/from-toronto/january/under-2000/` now does this daily |
+| [samples/spending-money-mexico-dominican-republic.md](samples/spending-money-mexico-dominican-republic.md) | Draft guide #8: spending money for Cancún and Punta Cana (engine numbers, 2026-11-26; 3 facts to check, owner paragraph to add) |
+| [ai-visibility.md](ai-visibility.md) | Getting cited in ChatGPT, Perplexity and Google AI answers: indexes, robots.txt policy, 14 prompts to track monthly, log |
+| [launch-seo-checklist.md](launch-seo-checklist.md) | What must be true before indexing is switched on (Gate B), what's already tested, risks to watch in Search Console |
 
 **Big caveat:** no paid keyword tool was available, so search volumes and difficulty are my estimates from what ranks today. Search Console data replaces them 4-6 weeks after launch.
 
@@ -43,9 +57,9 @@ About 4-5 hours a week of the owner's time, plus coding-agent time for the gener
 
 | Week | Owner | Coding agent |
 |---|---|---|
-| **1** (30 Nov – 6 Dec) | Read 20 recent Reddit threads on trip budgets and log the exact questions (`questions-log.md`). Review and edit sample 1 (Cancún); add a short personal paragraph. Record the first 30-second screen video. | Build the page generator (destination hub template) behind the global `noindex` flag; guardrail tests (dated amounts, banned words). |
-| **2** (7 – 13 Dec) | Review sample 2 ($2,000 in January). Video: "Only 3 of 25 places fit $2,000." 3-5 helpful Reddit answers with numbers, **no links**. | Month × budget template and indexing gates; sitemap of indexable pages only. |
-| **3** (14 – 20 Dec) | Write the spending-money guide (Mexico/DR). Ask Reddit (no link, if rules allow) what people actually spent per day, to check our daily estimates. Pick an email provider (owner decision). | Destination × month pages; internal links and breadcrumbs; JSON-LD (BreadcrumbList, WebPage/Article, TouristDestination; no Offer markup). |
+| **1** (30 Nov – 6 Dec) | Read 20 recent Reddit threads on trip budgets and log the exact questions (`questions-log.md`). Review and edit sample 1 (Cancún); add a short personal paragraph. Record the first 30-second screen video. | ~~Page generator and guardrail tests~~ **done 2026-11-26.** Next: link the home page and trip-finder results to the pages. |
+| **2** (7 – 13 Dec) | Review sample 2 ($2,000 in January). Video: "Only 3 of 25 places fit $2,000." 3-5 helpful Reddit answers with numbers, **no links**. | ~~Month × budget pages, gates, sitemap~~ **done.** Next: prefill the trip finder from page links (`?dest=&month=&adults=`). |
+| **3** (14 – 20 Dec) | Write the spending-money guide (Mexico/DR). Ask Reddit (no link, if rules allow) what people actually spent per day, to check our daily estimates. Pick an email provider (owner decision). | ~~Destination × month pages, breadcrumbs, JSON-LD~~ **done**, plus the method page and per-page questions. Next: the `dateModified` >5% rule. |
 | **4** (21 – 27 Dec) | Light week. Short piece and video on holiday fares from our December data (about $436 vs $800-1,060 per person for Cancún). Start the March break draft. | Email sign-up box on every page (once provider chosen); "See full breakdown" links from tool results to destination pages. |
 
 Week 5's fixed deadline: **March break page live by 4 January 2027.**

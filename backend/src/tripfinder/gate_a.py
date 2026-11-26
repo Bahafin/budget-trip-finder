@@ -114,6 +114,40 @@ def _pct(xs: list[float], q: float) -> float:
     return s[min(len(s) - 1, round(q * (len(s) - 1)))]
 
 
+def summary(path: Path) -> dict | None:
+    """Gate A results for the public method page: whole-trip and per-component errors, and each checked trip.
+
+    Errors are (ours - real) / real. None when the sheet is missing or has no real prices yet.
+    """
+    if not path.exists():
+        return None
+    rows = [r for r in csv.DictReader(path.open(encoding="utf8")) if r["real_flight_pp"] and r["real_hotel_night"]]
+    if not rows:
+        return None
+    comp: dict[str, list[float]] = {"flights": [], "hotel": [], "total": []}
+    inside = {"flights": 0, "hotel": 0, "total": 0}
+    trips = []
+    for r in rows:
+        t = int(r["adults"]) + int(r["children"])
+        rf, rh = float(r["real_flight_pp"]), float(r["real_hotel_night"])
+        real_total = rf * t + rh * int(r["nights"]) * int(r["rooms"]) + float(r["daily_total"])
+        for k, ours, real, lo, hi in (
+            ("flights", r["flight_pp_expected"], rf, r["flight_pp_low"], r["flight_pp_high"]),
+            ("hotel", r["hotel_night_expected"], rh, r["hotel_night_low"], r["hotel_night_high"]),
+            ("total", r["total_expected"], real_total, r["total_low"], r["total_high"]),
+        ):
+            comp[k].append(_err(float(ours), real))
+            inside[k] += float(lo) <= real <= float(hi)
+        trips.append({"code": r["destination"], "depart": r["depart"], "nights": int(r["nights"]), "holiday": bool(r["holiday"]),
+                      "total_err": comp["total"][-1], "inside": float(r["total_low"]) <= real_total <= float(r["total_high"]),
+                      "checked_on": r["real_checked_on"]})
+    out: dict = {"n": len(rows), "checked_on": max(t["checked_on"] for t in trips), "trips": trips}
+    for k, errs in comp.items():
+        absx = [abs(e) for e in errs]
+        out[k] = {"median": statistics.median(errs), "median_abs": statistics.median(absx), "p90_abs": _pct(absx, 0.9), "inside": inside[k]}
+    return out
+
+
 def report(path: Path) -> str:
     rows = list(csv.DictReader(path.open(encoding="utf8")))
     done = [r for r in rows if r["real_flight_pp"] and r["real_hotel_night"]]

@@ -1,6 +1,6 @@
 # SEO and content strategy: Canadian budget-trip searches
 
-Written 2026-11-25. Working name "Budget Trip Finder" (the brand is being chosen in `docs/brand/`).
+Written 2026-11-25; reviewed 2026-11-26 with the `programmatic-seo`, `seo-audit` and `ai-seo` skills (changes in section 7). The brand is **Far Enough**. Pages say "Budget Trip Finder" until farenough.ca is registered.
 
 ## Read this first: what is measured and what is estimated
 
@@ -124,6 +124,23 @@ From PHASE1_SPEC sections 7, 8 and 14, plus Canadian advertising law:
 - Click logging per partner (already planned in the spec) to compute earnings per 1,000 visitors (Gate D).
 - Email sign-ups per page: the number that matters most while search traffic is small.
 - UTM tags on every Reddit/Facebook/video link so we can tell channels apart.
+
+## 7. Review with the SEO skills (2026-11-26)
+
+**What held up:**
+- Budget-first and destination-cost pages from our own data are the right bets.
+- Subfolder URLs (`/from-toronto/...`), the thin-page gates, breadcrumbs and no `Offer` markup are what the programmatic-SEO playbook asks for.
+- Staying out of the "cheap all inclusive" and "cheap flights" head terms is still right.
+
+**What changed:**
+1. **Our strongest asset is original data, and we weren't showing it.** Gate A (50 trips checked by hand, median 11% whole-trip error) is the kind of primary source both Google and AI tools reward. It now has its own page, and each destination shows its own results. Next step: a "Toronto trip cost index" page with `Dataset` markup, refreshed monthly, as link bait for Canadian journalists.
+2. **AI answers are a channel, not only a threat.** Section 4 treated AI Overviews as something that eats clicks. ChatGPT now answers our exact question ([google-comparison.md §1b](../research/google-comparison.md)), so being the **cited source** matters as much as ranking.
+   - Plan: [ai-visibility.md](ai-visibility.md). Get into the Bing and Brave indexes as well as Google's, keep the AI search crawlers allowed, and track 14 prompts monthly.
+   - Pages now open with a dated one-sentence answer and carry questions with direct answers.
+3. **Trust signals are missing.** We need an About page with a named owner, a privacy page and a contact route. Google's quality raters and AI tools both look for who is behind the numbers. Owner task, before Gate B.
+4. **The generated pages are orphans today.** Nothing on the home page or in trip-finder results links to them. This must be fixed before indexing: [launch-seo-checklist.md](launch-seo-checklist.md).
+5. **Write for people, not for AI.** Google's own guidance warns against splitting content into small AI-friendly pieces and against separate AI versions of pages. The questions-and-answers sections are normal page content in plain HTML, not a separate page.
+6. **Third-party presence matters more for being *recommended* than *cited*.** Reddit and Facebook answers (content calendar) build the consensus that makes an AI tool name us, not just quote us. Don't rely on one forum: ChatGPT's sources shifted sharply in August 2026 (per the ai-seo skill's sources, not checked by us).
 
 ## Sources (read 2026-11-25)
 
