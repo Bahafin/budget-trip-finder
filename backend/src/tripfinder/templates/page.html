@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="$robots">
+<meta name="description" content="$description">
+<meta name="color-scheme" content="light dark">
+<title>$title</title>
+<link rel="canonical" href="$canonical">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Inter:wght@400..700&display=swap">
+<link rel="stylesheet" href="$css">
+<script type="application/ld+json">$jsonld</script>
+</head>
+<body>
+<div class="proto" role="note">Prototype for testing. Prices are estimates from cached fares and sampled hotel rates, not quotes.</div>
+<header class="$hero_class">
+  $hero_img
+  <div class="wrap">
+    <div class="topbar">
+      <a class="logo" href="$root" aria-label="$brand home">
+        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="#F2A541"/><path d="M6 17c3-1 5-4 8-4s5 3 8 4" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/><circle cx="14" cy="9" r="2.6" fill="#fff"/></svg>
+        <span class="brand-name">$brand</span>
+      </a>
+      <a class="toplink" href="$finder">Open the trip finder</a>
+    </div>
+    <div class="hero-copy">
+      <p class="eyebrow">$eyebrow</p>
+      <h1>$h1</h1>
+    </div>
+  </div>
+  $credit
+</header>
+<main class="wrap">
+  <nav class="crumbs" aria-label="Breadcrumb">$crumbs</nav>
+  $stale
+  $disclosure
+  $body
+  <footer>
+    <p><strong>Prices are estimates in Canadian dollars, made on <time datetime="$asof">$asof_long</time>, not quotes.</strong> They change daily. The partner's site shows the price you'll actually pay. Bookings are made with, and paid to, the partner, not us.</p>
+    <p>Links to partner sites may be affiliate links: we may earn a commission at no extra cost to you.</p>
+    <p>Flights: cached fares from Travelpayouts/Aviasales. Hotels: a sample of hotel rates (LiteAPI). Daily costs scaled with World Bank price levels (CC BY 4.0). Travel advice from the Government of Canada (travel.gc.ca); always check the official page before you go. Photos from Wikimedia Commons, credited on each photo.</p>
+    <p><a href="$hub">All trips from Toronto</a> · <a href="$root">Trip finder</a> · $brand: $tagline</p>
+  </footer>
+</main>
+</body>
+</html>
