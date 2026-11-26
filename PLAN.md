@@ -83,8 +83,8 @@ Done when the live site refreshes itself daily, links are tracked, and the 3-tri
 
 Needs the LiteAPI **production** key, so hotel prices are real rather than sandbox.
 
-- [ ] **2.1 Test set.** A script picks 50 trips: a mix of destinations, 1-4 travellers, 3-10 nights, dates 1-4 months out, including a few holiday dates.
-- [ ] **2.2 Real prices.** For each trip, record the real flight price (Google Flights) and hotel price (Booking.com or Expedia, same tier):
+- [x] **2.1 Test set** (2026-11-26: `tripfinder gate-a generate` → `docs/gate-a/sheet.csv`). A script picks 50 trips: a mix of destinations, 1-4 travellers, 3-10 nights, dates 1-4 months out, including a few holiday dates.
+- [ ] **2.2 Real prices** (10 of 50 checked 2026-11-26; `python -m tripfinder.gate_a_fill` records them; `tripfinder gate-a report` → `docs/gate-a/report.md`). For each trip, record the real flight price (Google Flights) and hotel price (Booking.com or Expedia, same tier):
   - I do this through the browser where sites allow it.
   - Tester feedback fills in the rest.
 - [ ] **2.3 Daily spend check.** Compare our daily figures with published per-city daily budgets, then adjust the baseline.
