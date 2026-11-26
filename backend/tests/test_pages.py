@@ -40,6 +40,19 @@ def test_generates_the_top_pages(built):
         assert (site / f"from-toronto/{first}/under-{b}/index.html").exists()
 
 
+def test_finder_index_lists_written_hubs(built):
+    """from-toronto/index.json maps destination code to its hub path, for the finder's card links."""
+    site, _, files = built
+    index = json.loads((site / pages.ORIGIN_SLUG / "index.json").read_text(encoding="utf8"))
+    assert index["CUN"] == "from-toronto/cancun/"
+    hubs = {p["path"] for p in json.loads((site / "manifest.json").read_text())["pages"]}
+    for code, path in index.items():
+        assert path in hubs and (site / path / "index.html") in files, code
+        assert re.fullmatch(r"from-toronto/[a-z0-9-]+/", path), path
+    priced = {d["code"] for d in json.loads((SITE / "data.json").read_text())["destinations"] if d["fares"]}
+    assert set(index) <= priced
+
+
 def test_every_price_is_dated(built):
     """Guardrail 1: a dollar amount must sit in a data-asof span (an estimate) or a data-budget span (the reader's budget)."""
     _, _, files = built
@@ -175,6 +188,12 @@ def test_relative_links():
     assert pages.rel("from-toronto/cancun/january/", "from-toronto/") == "../../../from-toronto/"
 
 
+def test_finder_link_passes_page_inputs():
+    assert 'href="../../"' in pages.finder_link("from-toronto/cancun/")
+    link = pages.finder_link("from-toronto/march-2027/under-3000/", {"budget": 3000, "adults": 2, "month": "2027-03", "nights": None})
+    assert 'href="../../../?budget=3000&amp;adults=2&amp;month=2027-03"' in link
+
+
 def test_hotel_link_matches_engine_js_template():
     snap = pages.Snapshot(TODAY, "", {}, [], {"CUN": {"url": "https://x.test/?in=%7Bcheckin%7D&out={checkout}&r=%7Brooms%7D", "partner": "P"}}, {}, {}, {})
     f = Fare("CUN", date(2027, 1, 5), date(2027, 1, 12), Money.of(400), TODAY)
@@ -232,7 +251,7 @@ FINDER_PARAMS = {"budget", "adults", "children", "month", "nights", "tier", "sor
 
 
 def test_budget_for_rounds_up():
-    snap = pages.Snapshot(TODAY, "", {}, [], {}, {}, {})
+    snap = pages.Snapshot(TODAY, "", {}, [], {}, {}, {}, {})
     d = _dest(6)
     p = pages.Pricer(snap).price(d, pages.Pricer(snap).req(99_999, "mid", "2027-01", 7), 7, "2027-01")
     assert pages.budget_for(p) >= p.total.expected.amount

@@ -313,6 +313,7 @@ class Page:
     about: dict[str, Any] | None = None  # schema.org TouristDestination
     article: bool = False
     has_partner_links: bool = False
+    hub_of: str = ""  # destination code when this is that destination's hub page (for the finder's card links)
 
 
 def rel(from_path: str, to_path: str) -> str:
@@ -440,7 +441,9 @@ def method_list(fmt: Fmt, pkgs: dict[str, Package]) -> str:
     any_pkg = pkgs.get("mid") or next(iter(pkgs.values()))
     f = any_pkg.fare
     flights = any_pkg.components[0]
-    items = [(f"<li><b>Flights:</b> cheapest cached return fare for these dates was {fmt.amt(f.price)} per person"
+    lead = ("cheapest cached return fare for these dates was" if f.link else
+            f"no cached fare for {any_pkg.nights} nights, so this is estimated from the cheapest fare that month,")
+    items = [(f"<li><b>Flights:</b> {lead} {fmt.amt(f.price)} per person"
              f"{' (' + esc(stops(f)) + ')' if stops(f) else ''}, seen on {esc(day_long(f.found_on))}; {esc(conf_text(flights.confidence))}.</li>")]
     for t, p in pkgs.items():
         lod = p.components[1]
@@ -624,7 +627,7 @@ class Builder:
             body="".join(body),
             crumbs=[(f"From {ORIGIN_NAME}", f"{ORIGIN_SLUG}/"), (nm, path)],
             gate=gate, gate_reason="" if gate else f"fares in {len(months)} month(s)",
-            photo=self.photos.get(d.code), about=self.about(d), has_partner_links=True,
+            photo=self.photos.get(d.code), about=self.about(d), has_partner_links=True, hub_of=d.code,
         ))
 
     def related(self, d: DestinationData, path: str, month: str) -> str:
@@ -1131,6 +1134,10 @@ def generate(snapshot_path: Path | None = None, site_dir: Path | None = None, in
         urls = "".join(f"<url><loc>{esc(SITE_URL + p.path)}</loc><lastmod>{snap.today.isoformat()}</lastmod></url>" for p in listed)
         (out_root / "sitemap.xml").write_text(
             f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>', encoding="utf8")
+    out_root.mkdir(parents=True, exist_ok=True)
+    # The trip finder links each result card to its destination hub when one was written (site/index.html card()).
+    (out_root / "index.json").write_text(
+        json.dumps({p.hub_of: p.path for p in pages if p.hub_of}, indent=0, sort_keys=True), encoding="utf8")
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps({
         "today": snap.today.isoformat(),
