@@ -279,6 +279,7 @@ class Page:
     about: dict[str, Any] | None = None  # schema.org TouristDestination
     article: bool = False
     has_partner_links: bool = False
+    hub_of: str = ""  # destination code when this is that destination's hub page (for the finder's card links)
 
 
 def rel(from_path: str, to_path: str) -> str:
@@ -444,8 +445,13 @@ def partner_ctas(snap: Snapshot, d: DestinationData, fare: Fare, adults: int = A
             "and book with them. May be an affiliate link.</p>")
 
 
-def finder_link(page_path: str, label: str = "Try your own budget, dates and group size") -> str:
-    return f'<p><a class="btn primary wide" href="{esc(rel(page_path, ""))}">{esc(label)}</a></p>'
+def finder_link(page_path: str, label: str = "Try your own budget, dates and group size", **inputs: Any) -> str:
+    """Button to the trip finder, pre-filled with this page's inputs (budget, adults, children, month, nights, tier)."""
+    from urllib.parse import urlencode
+
+    query = urlencode({k: v for k, v in inputs.items() if v is not None})
+    href = rel(page_path, "") + (f"?{query}" if query else "")
+    return f'<p><a class="btn primary wide" href="{esc(href)}">{esc(label)}</a></p>'
 
 
 def signup_box(topic: str) -> str:
@@ -578,7 +584,7 @@ class Builder:
             INCLUDED,
             how_sure(f),
             advisory_block(self.snap, d),
-            finder_link(path),
+            finder_link(path, adults=ADULTS, nights=HUB_NIGHTS, tier="mid"),
             signup_box(esc(f"{nm} from {ORIGIN_NAME}")),
             self.related(d, path, head_month),
         ]
@@ -592,7 +598,7 @@ class Builder:
             body="".join(body),
             crumbs=[(f"From {ORIGIN_NAME}", f"{ORIGIN_SLUG}/"), (nm, path)],
             gate=gate, gate_reason="" if gate else f"fares in {len(months)} month(s)",
-            photo=self.photos.get(d.code), about=self.about(d), has_partner_links=True,
+            photo=self.photos.get(d.code), about=self.about(d), has_partner_links=True, hub_of=d.code,
         ))
 
     def related(self, d: DestinationData, path: str, month: str) -> str:
@@ -675,7 +681,7 @@ class Builder:
             INCLUDED,
             how_sure(f),
             advisory_block(self.snap, d),
-            finder_link(path),
+            finder_link(path, adults=ADULTS, month=month, nights=lead.nights, tier="mid" if "mid" in pk else "budget"),
             signup_box(esc(f"{nm} from {ORIGIN_NAME}")),
         ]
         self.pages.append(Page(
@@ -780,7 +786,7 @@ class Builder:
             "<li><b>Flights:</b> cheapest cached return fare for those dates, plus a margin.</li>"
             "<li><b>Hotels:</b> a sample of real hotel prices for the month, by comfort level.</li>"
             "<li><b>Day-to-day:</b> our estimate from each country's price level compared with Canada.</li></ul></section>"),
-            INCLUDED, how_sure(f), finder_link(path), signup_box(f"trips under {budget_amt(budget)} from {esc(ORIGIN_NAME)}"),
+            INCLUDED, how_sure(f), finder_link(path, budget=budget, adults=ADULTS, month=month), signup_box(f"trips under {budget_amt(budget)} from {esc(ORIGIN_NAME)}"),
         ]
         count = len(fits_mid) + len([p for p in fits_bud if p.destination.code not in {q.destination.code for q in fits_mid}])
         gate = count >= GATE_BUDGET_RESULTS
@@ -822,7 +828,7 @@ class Builder:
                 f"<h2>By budget</h2><ul>{budgets}</ul>"
                 f"<h2>About a week in {esc(month_label(month))}, cheapest first</h2>"
                 '<div class="scroll"><table><thead><tr><th>Destination</th><th>Nights</th><th>Total, budget hotel</th><th>Total, mid-range hotel</th></tr></thead>'
-                f"<tbody>{table}</tbody></table></div>{INCLUDED}{how_sure(f)}{finder_link(path)}")
+                f"<tbody>{table}</tbody></table></div>{INCLUDED}{how_sure(f)}{finder_link(path, adults=ADULTS, month=month)}")
         gate = len(rows) >= GATE_BUDGET_RESULTS
         self.pages.append(Page(
             path=path, title=f"Trips from {ORIGIN_NAME} in {month_label(month)}: what a week costs for two",
@@ -867,7 +873,8 @@ class Builder:
         body += [(f"<p class=\"fine\">Family of four: two adults and two children sharing one room; children's day-to-day costs counted at 70% of an adult's. "
                  f"Departures {esc(day(date.fromisoformat(w['departFrom'])))}–{esc(day(date.fromisoformat(w['departTo'])))}, "
                  f"returns {esc(day(date.fromisoformat(w['retFrom'])))}–{esc(day(date.fromisoformat(w['retTo'])))}.</p>"),
-                 INCLUDED, how_sure(f), finder_link(path), signup_box(esc(f"March break {year} from {ORIGIN_NAME}"))]
+                 INCLUDED, how_sure(f), finder_link(path, budget=MARCH_BREAK_BUDGETS[0], adults=adults, children=children, month=month),
+                 signup_box(esc(f"March break {year} from {ORIGIN_NAME}"))]
         gate = len(dests) >= GATE_BUDGET_RESULTS and sections > 0
         self.pages.append(Page(
             path=path, title=f"March break {year} from {ORIGIN_NAME}: what fits $3,000 or $5,000 for a family",
@@ -956,6 +963,10 @@ def generate(snapshot_path: Path | None = None, site_dir: Path | None = None, in
         urls = "".join(f"<url><loc>{esc(SITE_URL + p.path)}</loc><lastmod>{snap.today.isoformat()}</lastmod></url>" for p in listed)
         (out_root / "sitemap.xml").write_text(
             f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>', encoding="utf8")
+    out_root.mkdir(parents=True, exist_ok=True)
+    # The trip finder links each result card to its destination hub when one was written (site/index.html card()).
+    (out_root / "index.json").write_text(
+        json.dumps({p.hub_of: p.path for p in pages if p.hub_of}, indent=0, sort_keys=True), encoding="utf8")
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps({
         "today": snap.today.isoformat(),
