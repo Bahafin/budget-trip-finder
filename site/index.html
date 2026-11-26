@@ -4,9 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<meta name="description" content="Far Enough (prototype): see how far your budget goes. Whole trips from Toronto with flights, hotel and spending money estimated in CAD.">
+<meta name="description" content="Budget Trip Finder (prototype): see how far your budget goes. Whole trips from Toronto with flights, hotel and spending money estimated in CAD.">
 <meta name="color-scheme" content="light dark">
-<title>Far Enough</title>
+<!-- Brand name: "Budget Trip Finder" until farenough.ca is registered (TODO.md). Change it here (title, description,
+     logo aria-label, logo text) and in backend/src/tripfinder/pages.py BRAND_NAME together. -->
+<title>Budget Trip Finder</title>
 <link rel="preconnect" href="https://thumb.wikimedia.org">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,7 +31,6 @@
     --under-ink: var(--lake); --over-ink: var(--sun-deep);
     --warn-bg: #fff4dc; --warn-ink: #6b4700; --info-bg: #e8f1f8; --info-ink: #1d4466;
     --shadow: 0 1px 2px rgb(19 41 61 / 6%), 0 8px 24px rgb(19 41 61 / 9%);
-    --radius: 18px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -59,11 +60,12 @@
   .hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
   .hero::after { content: ""; position: absolute; inset: 0; z-index: -1;
     background: linear-gradient(180deg, rgb(5 25 30 / 55%) 0%, rgb(5 25 30 / 25%) 40%, rgb(5 25 30 / 70%) 100%); }
-  .topbar { display: flex; align-items: center; justify-content: space-between; padding-top: 16px; }
-  .topbar { gap: 4px 16px; flex-wrap: wrap; justify-content: flex-start; }
+  .topbar { display: flex; align-items: center; gap: 4px 16px; flex-wrap: wrap; padding-top: 16px; }
   .logo { font: 800 20px/1 var(--font-display); letter-spacing: -0.01em; color: #fff; text-decoration: none; display: flex; gap: 8px; align-items: center; }
   .logo svg { flex: none; }
   .descriptor { font-size: 14px; color: rgb(255 255 255 / 88%); }
+  .toplink { margin-left: auto; font-size: 14px; font-weight: 600; color: #fff; }
+  @media (max-width: 559px) { .toplink { margin-left: 0; flex-basis: 100%; } }
   .hero-copy { padding: 40px 0 124px; max-width: 1000px; }
   h1 { font: 800 clamp(40px, 9vw, 76px)/1.04 var(--font-display); letter-spacing: -0.025em; margin: 0 0 16px; text-shadow: 0 2px 18px rgb(0 0 0 / 30%); }
   /* The amount in the headline is the budget field itself: accented because you can change it. */
@@ -191,12 +193,13 @@
        sizes="100vw" alt="" fetchpriority="high">
   <div class="wrap">
     <div class="topbar">
-      <a class="logo" href="./" aria-label="Far Enough home">
+      <a class="logo" href="./" aria-label="Budget Trip Finder home">
         <!-- Logo concept from the brand brief: a dotted flight arc landing on the horizon, under a small sun. Not the final mark. -->
         <svg width="34" height="28" viewBox="0 0 34 28" aria-hidden="true"><circle cx="24" cy="8" r="4.2" fill="#F2A541"/><path d="M4 22C8 8 19 6 28 22" stroke="#fff" stroke-width="2.2" stroke-dasharray="0.1 4.4" stroke-linecap="round" fill="none"/><path d="M1.5 23.5h31" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>
-        <span class="brand-name">Far Enough</span>
+        <span class="brand-name">Budget Trip Finder</span>
       </a>
       <span class="descriptor">Whole-trip budgets from Toronto</span>
+      <a class="toplink" href="from-toronto/">Trips by destination and month</a>
     </div>
     <div class="hero-copy">
       <h1>See how far <span class="hero-amt"><span class="cur" aria-hidden="true">$</span><input id="budget" name="budget" form="f" type="text" inputmode="numeric" autocomplete="off" pattern="[0-9, ]*" value="3,000" required aria-label="Total budget for the whole trip, in Canadian dollars"></span> goes.</h1>
@@ -232,9 +235,10 @@
 
   <footer>
     <p id="fresh"></p>
-    <p><strong>Prices are estimates, not quotes.</strong> Confirm prices on the partner site before booking. Links may be affiliate links: we may earn a commission at no extra cost to you.</p>
+    <p><strong>Prices are estimates, not quotes.</strong> Confirm prices on the partner site before booking. Bookings are made with, and paid to, the partner, not us. Links may be affiliate links: we may earn a commission at no extra cost to you.</p>
     <p>Daily costs are scaled with World Bank price levels (CC BY 4.0). Travel advice from the Government of Canada (travel.gc.ca); always check the official page before you go.</p>
     <p>Destination photos from Wikimedia Commons; the photographer and licence are credited on each photo.</p>
+    <p><a href="from-toronto/">All trips from Toronto, by destination and month</a></p>
   </footer>
 </main>
 
@@ -400,6 +404,21 @@ document.getElementById("fresh").textContent =
   `Trip data updated ${data.generatedAt.slice(0, 10)}, covering ${dests.length} destinations from Toronto.`;
 
 const sortSel = document.querySelector('select[name="sort"]');
+
+// Pre-fill from the address, e.g. ?budget=2500&adults=2&children=1&month=2027-03&nights=7&tier=mid&sort=cheapest,
+// so destination and month pages can open the finder with their own inputs. Unknown or invalid values are ignored.
+(function prefill() {
+  const q = new URLSearchParams(location.search);
+  const int = (k, lo, hi) => { const v = Number(q.get(k)); return q.has(k) && Number.isInteger(v) && v >= lo && v <= hi ? v : null; };
+  const setSel = (sel, v) => { if (v && [...sel.options].some((o) => o.value === v)) sel.value = v; };
+  const b = int("budget", 100, 1000000); if (b != null) budgetIn.value = fmt(b);
+  const a = int("adults", 1, 9); if (a != null) f.elements.adults.value = a;
+  const c = int("children", 0, 9); if (c != null) f.elements.children.value = c;
+  const n = int("nights", 1, 30); if (n != null) f.elements.nights.value = n;
+  setSel(f.elements.month, q.get("month"));
+  setSel(f.elements.tier, q.get("tier"));
+  setSel(sortSel, q.get("sort"));
+})();
 const measure = document.createElement("canvas").getContext("2d");
 const budgetValue = () => Number(budgetIn.value.replace(/[^0-9]/g, "")) || null;
 function sizeBudget() {
@@ -441,7 +460,7 @@ function run(e) {
   }
   status.replaceChildren(
     `${within} trip${within === 1 ? "" : "s"} fit ${money(req.budget)}`,
-    el("small", {}, `${results.length - within ? `Plus ${results.length - within} that fit only if prices land low. ` : ""}${req.month ? monthName(req.month) : "Any month"}, estimates in CAD.`),
+    el("small", {}, `${results.length - within ? `Plus ${results.length - within} that ${results.length - within === 1 ? "fits" : "fit"} only if prices land low. ` : ""}${req.month ? monthName(req.month) : "Any month"}, estimates in CAD.`),
   );
 }
 f.addEventListener("submit", run);
