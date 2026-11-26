@@ -1,5 +1,6 @@
 """Guardrails for the generated destination and month pages (docs/content/programmatic-pages.md)."""
 
+import html
 import json
 import re
 import shutil
@@ -8,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from tripfinder import pages
+from tripfinder import gate_a, pages
 from tripfinder.config import ROOT
 from tripfinder.engine import DestinationData, Fare, LodgingBand
 from tripfinder.money import Money, PriceRange
@@ -177,6 +178,53 @@ def test_hotel_link_matches_engine_js_template():
     snap = pages.Snapshot(TODAY, "", {}, [], {"CUN": {"url": "https://x.test/?in=%7Bcheckin%7D&out={checkout}&r=%7Brooms%7D", "partner": "P"}}, {}, {})
     f = Fare("CUN", date(2027, 1, 5), date(2027, 1, 12), Money.of(400), TODAY)
     assert pages.hotel_link(snap, "CUN", f, 3, 0)["url"] == "https://x.test/?in=2027-01-05&out=2027-01-12&r=2"
+
+
+def test_titles_and_descriptions_are_unique_and_short(built):
+    """seo-audit basics: one h1, unique titles and descriptions, titles short enough not to be cut in results."""
+    _, _, files = built
+    titles, descs = {}, {}
+    for f, text in files.items():
+        title = re.search(r"<title>(.*?)</title>", text).group(1)
+        desc = re.search(r'<meta name="description" content="([^"]*)"', text).group(1)
+        assert len(html.unescape(title)) <= 65, f"{f}: title {len(title)} chars"
+        assert 70 <= len(html.unescape(desc)) <= 170, f"{f}: description {len(desc)} chars"
+        assert text.count("<h1>") == 1, f
+        titles.setdefault(title, []).append(f)
+        descs.setdefault(desc, []).append(f)
+    assert all(len(v) == 1 for v in titles.values()), [v for v in titles.values() if len(v) > 1][:2]
+    assert all(len(v) == 1 for v in descs.values()), [v for v in descs.values() if len(v) > 1][:2]
+
+
+def test_every_page_links_the_method_page(built):
+    site, _, files = built
+    assert (site / pages.METHOD_PATH / "index.html").exists()
+    for f, text in files.items():
+        assert "how-we-estimate/" in text, f
+
+
+def test_method_page_shows_the_hand_checks(built):
+    site, _, _ = built
+    text = (site / pages.METHOD_PATH / "index.html").read_text(encoding="utf8")
+    checks = gate_a.summary(pages.CHECKS_PATH)
+    assert checks is not None
+    assert f"we picked {checks['n']} trips" in text
+    assert text.count("<tr><td>") == checks["n"]  # one row per checked trip
+
+
+def test_hubs_answer_common_questions(built):
+    site, _, _ = built
+    text = (site / "from-toronto/cancun/index.html").read_text(encoding="utf8")
+    assert "Common questions about Cancún from Toronto" in text
+    for q in ("How much does a week in Cancún cost", "How much is a return flight", "How much spending money"):
+        assert q in text, q
+
+
+def test_gate_a_summary_matches_the_report():
+    checks = gate_a.summary(pages.CHECKS_PATH)
+    report = gate_a.report(pages.CHECKS_PATH)
+    assert f"Checked {checks['n']} of" in report
+    assert f"median absolute total error {checks['total']['median_abs']:.0%}" in report
 
 
 def test_brand_is_one_constant(built):

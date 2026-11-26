@@ -1,6 +1,29 @@
 # Spec: programmatic destination and month pages
 
-Written 2026-11-25. For the coding agent and the owner. Nothing here is built yet; this is the spec.
+Written 2026-11-25. For the coding agent and the owner.
+
+## Status (2026-11-26)
+
+**Built** (`backend/src/tripfinder/pages.py`, run daily by `.github/workflows/pages.yml`): 109 pages, 74 of which pass their data gate, and all of which are noindex. That covers every page type below, with:
+- the indexing gates
+- the guardrail tests (`backend/tests/test_pages.py`)
+- the engine parity check of every priced number (`site/tests/pages.test.mjs`)
+
+**Added after the review with the SEO skills (2026-11-26):**
+- **"How we estimate" page** (`/from-toronto/how-we-estimate/`), linked from every page. It publishes the Gate A hand check: 50 trips, median 11% whole-trip error, 44 of 50 inside our range, and every trip checked. This is our most defensible original data.
+- **Per-destination checks:** the "How sure" box on each destination page states that destination's own Gate A results (e.g. "Cancún: 15% and 22% under the real total").
+- **"Common questions" on each destination hub,** answered only from the data and the engine: a week for two, the cheapest month, the flight price, spending money.
+- **Titles of 65 characters or fewer,** unique titles and descriptions, and one `<h1>` per page, all enforced by tests.
+- **Partner fine print** once per result grid, not under every card.
+
+**Not built yet:**
+- Prefilled trip-finder links (`index.html` reads no query parameters).
+- The `dateModified` rule (more than 5% change).
+- The email form (no provider yet).
+- Hand-written destination paragraphs.
+- Links from the home page and from trip-finder results to these pages. Without them the pages are orphans: see [launch-seo-checklist.md](launch-seo-checklist.md).
+
+**Watch item:** each hub leads with its cheapest month, so its main table repeats that month's page (cannibalization risk). See launch-seo-checklist.md, risk 1.
 
 ## Goal
 

@@ -27,6 +27,7 @@ General Reddit norm: keep at least 90% of activity non-promotional (the widely c
 Formats: **A** = article on the site, **V** = short video (30-60 s, phone screen recording + voice-over; YouTube Shorts / TikTok / Instagram Reels), **C** = community post or answer, **E** = email (once a provider exists).
 
 ### Week 1 (30 Nov – 6 Dec): listen and publish the first sample
+- **Baseline (30 min, new 2026-11-26):** run the 14 prompts in [ai-visibility.md](ai-visibility.md) once in ChatGPT and Perplexity. Before we're indexed this shows who gets cited today, so we know who we're up against.
 - **C (research, 1.5 h):** Read 20 recent threads on r/PersonalFinanceCanada, r/TravelHacks, r/askTO about trip budgets. Copy the exact questions people ask (no usernames) into `docs/content/questions-log.md`. This replaces our keyword estimates with real wording.
 - **A:** Publish sample 1, *Cancún from Toronto: what a week really costs* (draft in `samples/`, refresh the numbers first).
   Hook: "The $389 flight is real. The week is $2,260 for two." (7 nights, 22-29 Jan, basic hotel, estimated 25 Nov)
@@ -39,7 +40,7 @@ Formats: **A** = article on the site, **V** = short video (30-60 s, phone screen
 - **C:** 3-5 genuine answers to budget questions on Reddit using our method ("flights are about X per person in January, hotels Y a night, plan Z a day"), no links.
 
 ### Week 3 (14 – 20 Dec): spending money
-- **A:** *How much spending money do you need in Mexico and the Dominican Republic?* (daily estimates per tier, what's included, how we estimate, the honest "this part is unverified, tell us what you spent").
+- **A:** *How much spending money do you need in Mexico and the Dominican Republic?* **Drafted:** [samples/spending-money-mexico-dominican-republic.md](samples/spending-money-mexico-dominican-republic.md). Check the 3 ⚠️ facts, refresh the numbers and add your own paragraph. (daily estimates per tier, what's included, how we estimate, the honest "this part is unverified, tell us what you spent").
   Hook: "Your all-inclusive covers the food. It doesn't cover these 6 things."
 - **V:** "What $91 a day gets you in Cancún vs $140 in Toronto" (price level explained in 30 s).
 - **C:** Ask in r/PersonalFinanceCanada (as a discussion, no link, if rules allow): "For those back from Mexico/DR: what did you actually spend per day beyond the hotel?" Collect answers to check our daily estimates (the validation doc's open item 5).
@@ -51,6 +52,7 @@ Formats: **A** = article on the site, **V** = short video (30-60 s, phone screen
 - **C:** none (holidays). Update `questions-log.md`.
 
 ### Week 5 (28 Dec – 3 Jan): March break, the big one
+- **Already generated:** `/from-toronto/march-break/` fills itself in once March fares are in the cache (expected after the 1 December refresh). The owner's job is the hand-written part: school-board dates, what families should book first, and one personal tip.
 - **A:** *March break 2027 from Toronto: what fits $3,000 and $5,000 for a family of four* (2 adults + 2 children, engine supports children). Needs March fares in the cache; if they're thin, publish with clear "early estimate" labels and update weekly.
   Hook: "March break prices go up every week in January. Here's what fits today."
 - **V:** "A family of 4, $5,000, March break. Here's where it goes."
