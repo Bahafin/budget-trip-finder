@@ -72,10 +72,17 @@ Goal: testers see fresh, accurate-looking trips, and every click can earn.
   - (c) ~~`grouped_prices` for richer flight coverage~~ tested: it reads the same cache and adds almost nothing (Chicago in January: 1 fare either way). Thin destinations stay thin. The real fix is the live price check in Stage 4
   - (d) without a requested length, fares shorter than 3 nights are ignored. The default search now returns 3-5 night trips
 - [ ] **1.4 Tester feedback.** A "Was this price right?" link on each result, opening a short form with the trip pre-filled (owner provides the form). This doubles as Gate A data.
-- [ ] **1.5 Small fixes.**
+- [x] **1.5 Small fixes** (all three on the site by 2026-11-26).
   - Airline names instead of codes.
   - A visible "prices updated" date.
   - Clear wording that prices are estimates and booking happens on the partner's site.
+- [x] **1.6 Quick wins from research** (2026-11-26; docs/research/feature-ideas.md #5, #8, #9, #10):
+  - "Best for" theme chips on the finder and a best-for / what-to-do line on each card (hand-written, data/seed/themes.csv).
+  - Mexico City added through data/seed/always_include.csv; when that list changes the daily run adds the new place to the current list (no re-ranking). Hamilton checked and parked (too few cached fares).
+- [ ] **1.7 Keep the destination list stable.** The monthly re-selection ranks by fare count, and on 2026-11-26 a test re-selection swapped 7 of 25 places (Tokyo, Chicago, Dallas, Hong Kong, Honolulu, Kingston and Panama City out; Delhi, Miami, Nha Trang, San José, Warsaw and Ottawa in). The pages, themes, photos and Gate A trips are built around the current list. Before the next scheduled selection (about 2026-12-25): keep places that still have fares, and only fill gaps; new places need a theme row, a photo and a page address.
+  - "Doesn't fit, but close": places within max($300, 15%) over the budget, with a link that re-runs the search at that amount.
+  - The Gate A result (median whole-trip error 11% on 50 trips) is in "How it works".
+  - Hotel bands are rebuilt on every refresh (no API cost), so band rule changes reach the site the next day.
 
 Done when the live site refreshes itself daily, links are tracked, and the 3-trip spot check still holds.
 

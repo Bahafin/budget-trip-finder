@@ -89,3 +89,15 @@ def test_bands_drop_spiky_quotes_and_all_inclusive(tmp_path):
     assert dec["sample_size"] == 6
     rebuild_bands(conn, drop_all_inclusive=False)
     assert conn.execute("SELECT sample_size FROM lodging_bands WHERE month='2026-12' AND tier='mid'").fetchone()["sample_size"] == 7
+
+
+def test_changed_hand_picked_list_makes_selection_due(tmp_path):
+    conn = _db(tmp_path)
+    _fill(conn)
+    for job in ALL:
+        _log(conn, job, NOW - timedelta(hours=2))
+    assert due_steps(conn, NOW) == {}
+    due = due_steps(conn, NOW, extras=["MEX"])
+    assert due["extras"] == "hand-picked destination list changed" and "select" not in due and "hotels" in due
+    conn.execute("INSERT OR REPLACE INTO meta VALUES ('always_include', 'MEX')")
+    assert due_steps(conn, NOW, extras=["MEX"]) == {}

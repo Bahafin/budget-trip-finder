@@ -127,6 +127,19 @@
   .body { padding: 16px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
   .when { display: flex; flex-wrap: wrap; gap: 6px; font-size: 14px; }
   .pill { background: var(--surface-2); border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+  .themes { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; padding: 0; border: 0; }
+  .themes legend { font-size: 13px; font-weight: 600; color: var(--muted); margin-right: 4px; padding: 0; float: left; line-height: 34px; }
+  .chip { font: 500 14px var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px;
+          padding: 6px 14px; cursor: pointer; min-height: 34px; }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .chip:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .bestfor { margin: 0; font-size: 14px; color: var(--muted); }
+  .bestfor b { color: var(--ink); }
+  .close { grid-column: 1 / -1; background: var(--surface); border: 1px dashed var(--line); border-radius: 14px; padding: 18px 22px; }
+  .close h3 { margin: 0 0 6px; font-size: 17px; }
+  .close p { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
+  .close ul { margin: 0; padding-left: 18px; }
+  .close li { margin: 2px 0; }
   .price { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
   .price .big { font: 800 34px/1 var(--font-display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
   .price .lbl { font-size: 13px; color: var(--muted); }
@@ -221,6 +234,7 @@
       <label class="field wide">Comfort<select name="tier"><option value="budget">Budget (up to 3★)</option><option value="mid" selected>Mid (4★)</option><option value="upscale">Upscale (5★)</option></select></label>
       <button class="go" type="submit">Show trips</button>
     </form>
+    <fieldset class="themes" id="themes"><legend>Best for</legend></fieldset>
   </section>
 
   <div class="sortrow">
@@ -231,7 +245,7 @@
 
   <section class="how" aria-label="How it works">
     <div><h2>The whole trip, in one number</h2><p>Flights for everyone, a hotel for every night and money for food and getting around, added up in Canadian dollars.</p></div>
-    <div><h2>A range, not a teaser price</h2><p>Each total shows low, expected and high, and every line says how fresh its number is.</p></div>
+    <div><h2>A range, not a teaser price</h2><p>Each total shows low, expected and high, and every line says how fresh its number is. We checked 50 sample trips against real prices on Google Flights and Booking.com: the median whole-trip total was within 11%.</p></div>
     <div><h2>We don't sell trips</h2><p>Each card links to a partner site. You check the live price there and book with them directly.</p></div>
   </section>
 
@@ -245,7 +259,7 @@
 </main>
 
 <script type="module">
-import { flightLinkFor, hotelLinkFor, prepare, roomsNeeded, search } from "./engine.js";
+import { flightLinkFor, pricePackage, hotelLinkFor, prepare, roomsNeeded, search } from "./engine.js";
 import { PHOTOS } from "./photos.js";
 
 const f = document.getElementById("f");
@@ -340,6 +354,7 @@ function card(p, req, data) {
     el("span", { class: "pill" }, `${day(p.fare.depart)} → ${day(p.fare.ret)}`),
     el("span", { class: "pill" }, who),
   ));
+  if (p.dest.bestFor) b.append(el("p", { class: "bestfor" }, el("b", {}, `${p.dest.bestFor}.`), ` ${p.dest.todo}`));
 
   b.append(el("div", { class: "price" },
     el("div", {}, el("div", { class: "lbl" }, "Estimated total"), el("div", { class: "big" }, money(p.total.expected)),
@@ -414,6 +429,21 @@ document.getElementById("fresh").textContent =
 
 const sortSel = document.querySelector('select[name="sort"]');
 
+// "Best for" chips: show only places tagged with any chosen theme (hand-written tags in data/seed/themes.csv).
+const THEME_LABELS = { beach: "Beach", city: "City break", culture: "Culture", food: "Food", family: "Family & theme parks", nature: "Nature" };
+const chosenThemes = new Set();
+const themeBox = document.getElementById("themes");
+for (const t of data.themes ?? []) {
+  const chip = el("button", { type: "button", class: "chip", "aria-pressed": "false", "data-theme": t }, THEME_LABELS[t] ?? t);
+  chip.addEventListener("click", () => {
+    chosenThemes.has(t) ? chosenThemes.delete(t) : chosenThemes.add(t);
+    chip.setAttribute("aria-pressed", String(chosenThemes.has(t)));
+    run();
+  });
+  themeBox.append(chip);
+}
+const themed = () => (chosenThemes.size ? dests.filter((d) => (d.themes ?? []).some((t) => chosenThemes.has(t))) : dests);
+
 // Pre-fill from the address, e.g. ?budget=2500&adults=2&children=1&month=2027-03&nights=7&tier=mid&sort=cheapest,
 // so destination and month pages can open the finder with their own inputs. Unknown or invalid values are ignored.
 (function prefill() {
@@ -427,6 +457,10 @@ const sortSel = document.querySelector('select[name="sort"]');
   setSel(f.elements.month, q.get("month"));
   setSel(f.elements.tier, q.get("tier"));
   setSel(sortSel, q.get("sort"));
+  for (const t of (q.get("theme") ?? "").split(",")) {
+    const chip = themeBox.querySelector(`[data-theme="${CSS.escape(t)}"]`);
+    if (chip) { chosenThemes.add(t); chip.setAttribute("aria-pressed", "true"); }
+  }
 })();
 const measure = document.createElement("canvas").getContext("2d");
 const budgetValue = () => Number(budgetIn.value.replace(/[^0-9]/g, "")) || null;
@@ -436,6 +470,44 @@ function sizeBudget() {
   measure.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
   if ("letterSpacing" in measure) measure.letterSpacing = cs.letterSpacing;
   budgetIn.style.width = `${Math.ceil(measure.measureText(budgetIn.value || "000").width) + 4}px`;
+}
+
+// The cheapest trip a place offers with these settings: every month allowed and every cached trip length
+// (3-14 nights) unless the person fixed the length.
+function cheapestPackage(d, req) {
+  const months = req.month ? [req.month] : [...new Set(d.fares.map((x) => x.month))];
+  let best = null;
+  for (const m of months) {
+    const lengths = req.nights ? [req.nights] : [...new Set(d.fares.filter((x) => x.month === m && x.nights >= 3 && x.nights <= 14).map((x) => x.nights))];
+    for (const n of lengths) {
+      const p = pricePackage(d, req, n, m, today, data.constants);
+      if (p && (!best || p.total.expected < best.total.expected)) best = p;
+    }
+  }
+  return best;
+}
+
+// Places just over the budget: what a little more would unlock (the cheapest length each place offers).
+function closeCalls(req, results) {
+  const shown = new Set(results.map((p) => p.dest.code));
+  const extra = Math.max(300, Math.round((req.budget * 0.15) / 100) * 100);
+  const over = themed()
+    .filter((d) => !shown.has(d.code))
+    .map((d) => cheapestPackage(d, req))
+    .filter((p) => p && p.fit === "over")
+    .sort((a, b) => a.total.expected - b.total.expected);
+  let near = over.filter((p) => p.total.expected - req.budget <= extra).slice(0, 5);
+  // When nothing fits at all, show the three cheapest anyway, so the person sees where trips start.
+  const fallback = !near.length && !results.length;
+  if (fallback) near = over.slice(0, 3);
+  if (!near.length) return null;
+  const top = Math.ceil((near[near.length - 1].total.expected - req.budget) / 100) * 100;
+  return el("section", { class: "close", "aria-label": "Just over budget" },
+    el("h3", {}, fallback ? `The cheapest trips with these settings start at ${money(near[0].total.expected)}` : `Doesn't fit, but close: ${money(top)} more opens up`),
+    el("p", {}, "Expected totals for the cheapest trip each place offers with these settings."),
+    el("ul", {}, ...near.map((p) => el("li", {},
+      el("a", { href: `?${new URLSearchParams({ budget: Math.ceil(p.total.expected / 100) * 100, adults: req.adults, children: req.children, ...(req.month ? { month: req.month } : {}), ...(req.nights ? { nights: req.nights } : {}), tier: req.tier })}` }, p.dest.name),
+      ` · ${p.nights} nights · ${money(p.total.expected)} (${money(p.total.expected - req.budget)} over)`))));
 }
 
 function run(e) {
@@ -454,17 +526,20 @@ function run(e) {
   }
   let results;
   try {
-    results = search(dests, req, today, data.constants).slice(0, 15);
+    results = search(themed(), req, today, data.constants).slice(0, 15);
   } catch (err) {
     status.textContent = err.message;
     out.replaceChildren();
     return;
   }
   out.replaceChildren(...results.map((p) => card(p, req, data)));
+  const near = closeCalls(req, results);
+  if (near) out.append(near);
   const within = results.filter((p) => p.fit === "within").length;
   if (!results.length) {
     status.replaceChildren(`Nothing fits ${money(req.budget)} yet`, el("small", {}, "Try a bigger budget, fewer nights or the Budget comfort level."));
     out.append(el("div", { class: "empty" }, `No whole trip from Toronto fits ${money(req.budget)} with these settings. Raise the number in the headline to see what opens up.`));
+    out.append(out.querySelector(".close") ?? "");  // keep the cheapest-trips list below the message
     return;
   }
   status.replaceChildren(

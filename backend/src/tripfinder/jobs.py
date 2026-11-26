@@ -48,8 +48,39 @@ def refresh_reference(conn: sqlite3.Connection, s: Settings) -> dict[str, int]:
     return {"price_levels": len(levels), "advisories": len(advisories), "airlines": len(airlines)}
 
 
+def always_include(s: Settings) -> list[str]:
+    """Destinations picked by hand on top of the top-N by fare count (data/seed/always_include.csv)."""
+    path = s.seed_dir / "always_include.csv"
+    if not path.exists():
+        return []
+    return [r["code"].strip() for r in csv.DictReader(path.open(encoding="utf8")) if r["code"].strip()]
+
+
+def add_extras(conn: sqlite3.Connection, s: Settings) -> list[str]:
+    """Add the hand-picked destinations to the current selection without re-ranking the rest, so adding one
+    place doesn't reshuffle the list (and the pages, themes and photos built around it)."""
+    meter = Meter(conn, "extras")
+    cities = {c["code"]: c for c in p.fetch_cities(meter)}
+    blocked = {r["country_code"] for r in conn.execute("SELECT country_code FROM advisories WHERE level >= 2")}
+    added = []
+    for code in always_include(s):
+        c = cities.get(code)
+        if not c or not c.get("coordinates") or c["country_code"] in blocked:
+            continue
+        row = conn.execute("SELECT fares_seen FROM destinations WHERE code = ?", (code,)).fetchone()
+        conn.execute(
+            "INSERT OR REPLACE INTO destinations VALUES (?,?,?,?,?,?,1)",
+            (code, c["name"], c["country_code"], c["coordinates"]["lat"], c["coordinates"]["lon"], row[0] if row else 0),
+        )
+        added.append(code)
+    conn.execute("INSERT OR REPLACE INTO meta VALUES ('always_include', ?)", (",".join(sorted(always_include(s))),))
+    conn.commit()
+    return added
+
+
 def select_destinations(conn: sqlite3.Connection, s: Settings) -> list[str]:
-    """Pick the launch destinations: the ones with the most cached fares from the origin."""
+    """Pick the launch destinations: the ones with the most cached fares from the origin, plus the hand-picked
+    ones in always_include.csv (if they have fares and aren't under an advisory)."""
     meter = Meter(conn, "select")
     counts: Counter[str] = Counter()
     for month in upcoming_months(s.months_ahead):
@@ -71,6 +102,15 @@ def select_destinations(conn: sqlite3.Connection, s: Settings) -> list[str]:
         )
         if len(chosen) < s.destinations:
             chosen.append(code)
+    for code in always_include(s):
+        if code in chosen or code not in counts:
+            continue
+        c = cities.get(code)
+        if c and c.get("coordinates") and c["country_code"] not in blocked:
+            conn.execute("UPDATE destinations SET selected = 1 WHERE code = ?", (code,))
+            chosen.append(code)
+    # Remember which hand-picked list this selection used, so a changed list triggers a new selection.
+    conn.execute("INSERT OR REPLACE INTO meta VALUES ('always_include', ?)", (",".join(sorted(always_include(s))),))
     conn.commit()
     return chosen
 
@@ -258,7 +298,7 @@ def last_success(conn: sqlite3.Connection, job: str) -> datetime | None:
     return datetime.fromisoformat(row[0]) if row and row[0] else None
 
 
-def due_steps(conn: sqlite3.Connection, now: datetime | None = None) -> dict[str, str]:
+def due_steps(conn: sqlite3.Connection, now: datetime | None = None, extras: list[str] | tuple[str, ...] = ()) -> dict[str, str]:
     """Which refresh steps are due and why. Empty tables always count as due, so a fresh database rebuilds itself."""
     now = now or datetime.now(UTC)
     count = lambda sql: conn.execute(sql).fetchone()[0]
@@ -276,7 +316,10 @@ def due_steps(conn: sqlite3.Connection, now: datetime | None = None) -> dict[str
             due[step] = "no data yet"
         elif last is None or now - last > max_age:
             due[step] = f"last refreshed {last:%Y-%m-%d %H:%M} UTC" if last else "never refreshed"
-    if "select" in due:
+    row = conn.execute("SELECT value FROM meta WHERE key = 'always_include'").fetchone()
+    if extras and (row is None or row[0] != ",".join(sorted(extras))):
+        due.setdefault("extras", "hand-picked destination list changed")
+    if "select" in due or "extras" in due:
         # New destinations need fresh flights and hotels too.
         due.setdefault("flights", "destination list changed")
         due.setdefault("hotels", "destination list changed")
@@ -286,12 +329,13 @@ def due_steps(conn: sqlite3.Connection, now: datetime | None = None) -> dict[str
 
 def refresh_auto(conn: sqlite3.Connection, s: Settings, force: tuple[str, ...] = ()) -> dict[str, str]:
     """Run whatever is due, in dependency order. One failing step does not stop the others."""
-    due = due_steps(conn)
+    due = due_steps(conn, extras=always_include(s))
     for step in force:
         due.setdefault(step, "forced")
     steps = {
         "reference": refresh_reference,
         "select": select_destinations,
+        "extras": add_extras,
         "flights": refresh_flights,
         "hotels": refresh_hotels,
         "seasonality": refresh_seasonality,
@@ -306,4 +350,7 @@ def refresh_auto(conn: sqlite3.Connection, s: Settings, force: tuple[str, ...] =
             outcome[step] = f"ran ({due[step]}): {result if not isinstance(result, list) else f'{len(result)} destinations'}"
         except Exception as e:  # noqa: BLE001 - report and carry on; the export uses whatever data exists
             outcome[step] = f"FAILED ({due[step]}): {type(e).__name__}: {str(e)[:200]}"
+    # Bands are derived from stored hotel prices, so rebuilding is free; doing it every run means a change to
+    # the band rules reaches the site on the next run instead of waiting for the weekly hotel refresh.
+    outcome["bands"] = f"rebuilt: {rebuild_bands(conn)}"
     return outcome

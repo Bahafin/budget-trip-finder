@@ -54,6 +54,9 @@ CREATE TABLE IF NOT EXISTS api_calls (
     job TEXT, provider TEXT NOT NULL, endpoint TEXT NOT NULL,
     status INTEGER, ms INTEGER, bytes INTEGER, at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS meta (
+    key TEXT PRIMARY KEY, value TEXT NOT NULL
+);
 """
 
 

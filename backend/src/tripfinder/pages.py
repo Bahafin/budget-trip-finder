@@ -75,7 +75,7 @@ MARCH_BREAK_BUDGETS = (3000, 5000)
 
 # URL slugs are fixed here so a renamed destination never breaks a URL.
 SLUGS = {
-    "CUN": "cancun", "IST": "istanbul", "YVR": "vancouver", "LON": "london", "YYC": "calgary",
+    "MEX": "mexico-city", "CUN": "cancun", "IST": "istanbul", "YVR": "vancouver", "LON": "london", "YYC": "calgary",
     "NYC": "new-york", "KIN": "kingston-jamaica", "PUJ": "punta-cana", "TYO": "tokyo", "BKK": "bangkok",
     "LIR": "liberia-costa-rica", "AMS": "amsterdam", "ORL": "orlando", "YEA": "edmonton", "DXB": "dubai",
     "FLL": "fort-lauderdale", "YMQ": "montreal", "DFW": "dallas", "PTY": "panama-city", "DPS": "bali",

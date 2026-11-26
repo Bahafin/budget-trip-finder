@@ -1,6 +1,14 @@
 // Destination photos: Wikimedia Commons, hotlinked at 960px. Each entry carries its credit and licence;
 // the page shows them on the card. Swap an image by changing `src`, `author`, `license` and `page` together.
 export const PHOTOS = {
+ "MEX": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/01/Palacio_de_Bellas_Artes%2C_Ciudad_de_M%C3%A9xico%2C_M%C3%A9xico%2C_2015-07-18%2C_DD_10.JPG/960px-Palacio_de_Bellas_Artes%2C_Ciudad_de_M%C3%A9xico%2C_M%C3%A9xico%2C_2015-07-18%2C_DD_10.JPG",
+  "alt": "The Palacio de Bellas Artes with its golden domes, seen from above over central Mexico City",
+  "tagline": "Museums, markets and some of the best food anywhere",
+  "author": "Diego Delso",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Palacio_de_Bellas_Artes,_Ciudad_de_M%C3%A9xico,_M%C3%A9xico,_2015-07-18,_DD_10.JPG"
+ },
  "CUN": {
   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Cancun_Strand_Luftbild_%2822143397586%29.jpg/960px-Cancun_Strand_Luftbild_%2822143397586%29.jpg",
   "alt": "Aerial view of Cancun's hotel zone beach and turquoise sea",

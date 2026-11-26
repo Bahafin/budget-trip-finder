@@ -6,6 +6,8 @@ price levels relative to Canada, advisories and our own notes. No keys, no raw h
 
 from __future__ import annotations
 
+import csv
+
 import json
 import sqlite3
 from datetime import UTC, date, datetime
@@ -25,6 +27,24 @@ from .links import flight_link, flight_search_link, hotel_link
 from .search import load_destinations, load_notes
 
 
+THEMES = ("beach", "city", "culture", "food", "family", "nature")
+
+
+def load_themes(seed_dir) -> dict[str, dict]:
+    """Hand-written per destination (data/seed/themes.csv): theme tags, a "best for" label and a "what to do" line."""
+    path = seed_dir / "themes.csv"
+    if not path.exists():
+        return {}
+    out = {}
+    for r in csv.DictReader(path.open(encoding="utf8")):
+        tags = [t.strip() for t in r["themes"].split(";") if t.strip()]
+        unknown = set(tags) - set(THEMES)
+        if unknown:
+            raise ValueError(f"themes.csv {r['code']}: unknown theme(s) {sorted(unknown)}")
+        out[r["code"]] = {"themes": tags, "bestFor": r["best_for"], "todo": r["todo"]}
+    return out
+
+
 def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = None) -> dict:
     today = today or date.today()
     dests = load_destinations(conn, today)
@@ -36,6 +56,7 @@ def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = N
     }
     notes = {c: v for c, v in load_notes(s.seed_dir).items() if c in countries}
     airlines = {r["code"]: r["name"] for r in conn.execute("SELECT * FROM airlines")}
+    themes = load_themes(s.seed_dir)
     out_dests = []
     for d in dests:
         out_dests.append(
@@ -44,6 +65,7 @@ def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = N
                 "name": d.name,
                 "country": d.country_code,
                 "priceLevel": float(d.price_level) if d.price_level is not None else None,
+                **themes.get(d.code, {"themes": [], "bestFor": "", "todo": ""}),
                 # "Check hotels" link; the browser fills {checkin} {checkout} {adults} {children} {rooms}.
                 # Flight search for trips with no cached fare of that length; the browser fills {dep} {ret} {pax}.
                 "flightSearch": flight_search_link(s, d.code),
@@ -93,6 +115,7 @@ def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = N
         "destinations": out_dests,
         "advisories": advisories,
         "notes": notes,
+        "themes": list(THEMES),
     }
 
 
