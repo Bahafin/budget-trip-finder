@@ -42,6 +42,10 @@ CREATE TABLE IF NOT EXISTS price_levels (
 CREATE TABLE IF NOT EXISTS advisories (
     country_code TEXT PRIMARY KEY, level INTEGER, text TEXT, url TEXT, published TEXT, fetched_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS price_index (
+    destination TEXT NOT NULL, day TEXT NOT NULL, usd REAL NOT NULL, fetched_at TEXT NOT NULL,
+    PRIMARY KEY (destination, day)
+);
 CREATE TABLE IF NOT EXISTS airlines (
     code TEXT PRIMARY KEY, name TEXT NOT NULL
 );

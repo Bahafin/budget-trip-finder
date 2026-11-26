@@ -20,6 +20,7 @@ from .engine import (
     best_package,
     rank,
     rooms_needed,
+    season_factor,
 )
 from .links import flight_link, hotel_link
 from .money import Money, PriceRange
@@ -29,13 +30,36 @@ def load_destinations(conn: sqlite3.Connection, today: date | None = None) -> li
     today = today or date.today()
     levels = {r["country_code"]: Decimal(str(r["ratio_to_usd"])) for r in conn.execute("SELECT * FROM price_levels")}
     canada = levels.get("CA")
+    # Seasonality: the city's daily hotel price index, and which nights each month's hotel sample used.
+    index: dict[str, dict[date, float]] = defaultdict(dict)
+    for r in conn.execute("SELECT destination, day, usd FROM price_index"):
+        index[r["destination"]][date.fromisoformat(r["day"])] = r["usd"]
+    samples: dict[str, dict[str, tuple[date, int]]] = defaultdict(dict)
+    for r in conn.execute(
+        "SELECT destination, substr(checkin, 1, 7) AS month, MIN(checkin) AS checkin, MAX(nights) AS nights "
+        "FROM hotel_prices GROUP BY destination, month"
+    ):
+        samples[r["destination"]][r["month"]] = (date.fromisoformat(r["checkin"]), r["nights"])
+
+    def season(dest: str, depart: date, ret: date) -> Decimal:
+        months = samples.get(dest)
+        if not months or not index.get(dest):
+            return Decimal(1)
+        key = depart.strftime("%Y-%m")
+        if key not in months:  # nearest sampled month, as the lodging band lookup does
+            key = min(months, key=lambda m: abs((int(m[:4]) * 12 + int(m[5:])) - (depart.year * 12 + depart.month)))
+        start, nights = months[key]
+        return season_factor(index[dest], start, nights, depart, (ret - depart).days)
+
     fares: dict[str, list[Fare]] = defaultdict(list)
     for r in conn.execute("SELECT * FROM fares WHERE depart >= ?", (today.isoformat(),)):
+        depart, ret = date.fromisoformat(r["depart"]), date.fromisoformat(r["ret"])
         fares[r["destination"]].append(
             Fare(
-                r["destination"], date.fromisoformat(r["depart"]), date.fromisoformat(r["ret"]),
+                r["destination"], depart, ret,
                 Money.of(r["price"], r["currency"]), date.fromisoformat(r["found_on"]),
                 r["airline"] or "", r["transfers"] or 0, r["link"] or "",
+                season(r["destination"], depart, ret),
             )
         )
     bands: dict[str, dict[tuple[str, str], LodgingBand]] = defaultdict(dict)

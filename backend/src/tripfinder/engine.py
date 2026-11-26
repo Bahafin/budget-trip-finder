@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from .money import Money, PriceRange
@@ -68,6 +68,8 @@ class Fare:
     airline: str = ""
     transfers: int = 0
     link: str = ""
+    # Hotel price for these dates relative to the dates our hotel sample used (city price index); 1 = no data.
+    season: Decimal = Decimal(1)
 
     @property
     def nights(self) -> int:
@@ -120,6 +122,26 @@ class Package:
         return self.total * (Decimal(1) / Decimal(travellers))
 
 
+SEASON_MIN, SEASON_MAX = Decimal("0.6"), Decimal("2.0")
+# Share of the city index's swing applied to our tier bands. The index averages all hotels, including
+# luxury ones that swing harder. Calibrated 2026-11-26 on two Booking.com checks (Cancun New Year,
+# Edmonton Christmas): 0.5 gave -5% / +12% against -34% / -2% with none and +24% / +27% with all of it.
+# Recheck in Gate A.
+SEASON_WEIGHT = 0.5
+
+
+def season_factor(index: dict[date, float], sample_start: date, sample_nights: int, start: date, nights: int) -> Decimal:
+    """How much pricier (or cheaper) hotels are on the trip's nights than on the nights our hotel sample used,
+    from a city's daily price index. 1 when either window has less than half its days covered."""
+    trip = [index[d] for d in (start + timedelta(days=i) for i in range(nights)) if d in index]
+    base = [index[d] for d in (sample_start + timedelta(days=i) for i in range(sample_nights)) if d in index]
+    if len(trip) * 2 < nights or len(base) * 2 < sample_nights or not trip or not base:
+        return Decimal(1)
+    raw = (sum(trip) / len(trip)) / (sum(base) / len(base))
+    ratio = Decimal(str(round(1 + (raw - 1) * SEASON_WEIGHT, 2)))
+    return min(max(ratio, SEASON_MIN), SEASON_MAX)
+
+
 def rooms_needed(adults: int, children: int) -> int:
     """Two adults per room, rounded up; a room takes at most four people including children."""
     return max(math.ceil(adults / 2), math.ceil((adults + children) / 4), 1)
@@ -155,14 +177,18 @@ def flight_component(fares: list[Fare], req: TripRequest, nights: int, month: st
     return Component("flights", per_person * req.travellers, confidence, detail), best
 
 
-def lodging_component(dest: DestinationData, req: TripRequest, nights: int, month: str, today: date) -> Component:
+def lodging_component(
+    dest: DestinationData, req: TripRequest, nights: int, month: str, today: date, season: Decimal = Decimal(1)
+) -> Component:
     rooms = rooms_needed(req.adults, req.children)
     band = dest.bands.get((month, req.tier)) or _nearest_band(dest, month, req.tier)
     if band is not None:
         age = max(0, (today - band.as_of).days)
         label = f"sampled ({age}d)" if band.source == "liteapi" else "estimated"
         detail = f"{rooms} room(s) x {nights} nights, {req.tier} tier, from {band.sample_size} hotel prices"
-        return Component("lodging", band.nightly * (rooms * nights), label, detail)
+        if season != 1:
+            detail += f", dates priced x{season:.2f} vs sample dates"
+        return Component("lodging", band.nightly * (rooms * nights) * season, label, detail)
     level = dest.price_level or Decimal(1)
     base = Money.of(NIGHTLY_BASE_CAD[req.tier]) * level
     nightly = PriceRange(base * Decimal("0.7"), base, base * Decimal("1.5"))
@@ -200,7 +226,7 @@ def price_package(dest: DestinationData, req: TripRequest, nights: int, month: s
     flights, fare = flight
     if abs(fare.nights - nights) <= NIGHTS_TOLERANCE:
         nights = fare.nights  # price the stay the fare actually allows
-    comps = [flights, lodging_component(dest, req, nights, month, today), daily_component(dest, req, nights)]
+    comps = [flights, lodging_component(dest, req, nights, month, today, fare.season), daily_component(dest, req, nights)]
     total = PriceRange.zero(req.budget.currency)
     for c in comps:
         total = total + c.total

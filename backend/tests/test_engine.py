@@ -163,3 +163,38 @@ def test_flight_estimate_ignores_pricier_other_dates_except_in_the_high_end():
     flights = price_package(d, req, 7, "2027-01", TODAY).components[0]
     assert flights.total.expected == Money.of(330)
     assert flights.total.high == Money.of(900)
+
+
+# --- seasonality ------------------------------------------------------------
+
+def _index(start, values):
+    return {start + timedelta(days=i): v for i, v in enumerate(values)}
+
+
+def test_season_factor_compares_trip_nights_with_sample_nights():
+    from tripfinder.engine import season_factor
+
+    idx = _index(date(2026, 12, 15), [100, 100, 100] + [100] * 10 + [200, 200, 200, 200])
+    # sample 15-17 Dec at 100; trip 28-31 Dec at 200
+    assert season_factor(idx, date(2026, 12, 15), 3, date(2026, 12, 28), 4) == Decimal("1.5")  # half of 2x
+    assert season_factor(idx, date(2026, 12, 15), 3, date(2026, 12, 15), 3) == Decimal(1)
+
+
+def test_season_factor_is_clamped_and_needs_coverage():
+    from tripfinder.engine import season_factor
+
+    idx = _index(date(2026, 12, 15), [100, 100, 100, 1000, 1000])
+    assert season_factor(idx, date(2026, 12, 15), 3, date(2026, 12, 18), 2) == Decimal("2.0")  # 10x clamped
+    assert season_factor(idx, date(2026, 12, 15), 3, date(2027, 3, 1), 5) == Decimal(1)  # no index data
+    assert season_factor({}, date(2026, 12, 15), 3, date(2026, 12, 15), 3) == Decimal(1)
+
+
+def test_lodging_uses_the_fares_season_factor():
+    from dataclasses import replace
+
+    base = fare(300)
+    d = dest([replace(base, season=Decimal("1.5"))], {("2027-01", "mid"): band(100, 150, 220)})
+    req = TripRequest(Money.of(9999), adults=2, nights=7, month="2027-01")
+    lodging = price_package(d, req, 7, "2027-01", TODAY).components[1]
+    assert lodging.total.expected == Money.of(150 * 7 * 1.5)
+    assert "x1.50" in lodging.detail

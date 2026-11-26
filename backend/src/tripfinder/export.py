@@ -54,6 +54,7 @@ def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = N
                         "link": flight_link(s, f.link, d.code) if f.link else "",
                         "airline": airlines.get(f.airline, f.airline),
                         "transfers": f.transfers,
+                        "season": float(f.season),
                     }
                     for f in sorted(d.fares, key=lambda f: (f.depart, f.price.amount))
                 ],

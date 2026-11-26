@@ -13,6 +13,7 @@ AVIASALES_URL = "https://api.travelpayouts.com/aviasales/v3/prices_for_dates"
 CITIES_URL = "https://api.travelpayouts.com/data/en/cities.json"
 AIRLINES_URL = "https://api.travelpayouts.com/data/en/airlines.json"
 LITEAPI_RATES_URL = "https://api.liteapi.travel/v3.0/hotels/rates"
+LITEAPI_PRICE_INDEX_URL = "https://api.liteapi.travel/v3.0/prices/city"
 WORLDBANK_URL = "https://api.worldbank.org/v2/country/all/indicator/{indicator}"
 GAC_URL = "https://data.international.gc.ca/travel-voyage/index-alpha-eng.json"
 
@@ -134,6 +135,18 @@ def parse_hotel_prices(payload: dict[str, Any]) -> list[HotelPrice]:
         stars = meta.get("stars")
         out.append(HotelPrice(h["hotelId"], meta.get("name", ""), float(stars) if stars else None, best[0], best[1]))
     return out
+
+
+def fetch_price_index(meter: Meter, s: Settings, country: str, city: str) -> list[tuple[str, float]]:
+    """LiteAPI city price index (beta): average nightly price in USD for each day of the next year."""
+    data = meter.request("liteapi", LITEAPI_PRICE_INDEX_URL, params={"countryCode": country, "cityName": city},
+                         headers={"X-API-Key": s.liteapi_key}, timeout=90)
+    return parse_price_index(data)
+
+
+def parse_price_index(payload: dict[str, Any]) -> list[tuple[str, float]]:
+    x = payload.get("data", payload) if isinstance(payload, dict) else {}
+    return [(e["day"], float(e["avgPriceUsd"])) for e in (x.get("prices") or []) if e.get("avgPriceUsd")]
 
 
 # --- World Bank price levels --------------------------------------------------

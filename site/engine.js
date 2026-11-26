@@ -80,16 +80,17 @@ function nearestBand(dest, month, tier) {
   return dest.bandMap.get(`${best}|${tier}`);
 }
 
-function lodgingComponent(dest, req, nights, month, today, C) {
+function lodgingComponent(dest, req, nights, month, today, C, season = 1) {
   const rooms = roomsNeeded(req.adults, req.children);
   const band = dest.bandMap.get(`${month}|${req.tier}`) || nearestBand(dest, month, req.tier);
   if (band) {
     const age = Math.max(0, daysBetween(band.asOf, today));
     return {
       name: "lodging",
-      ...scale({ low: band.low, expected: band.mid, high: band.high }, rooms * nights),
+      ...scale({ low: band.low, expected: band.mid, high: band.high }, rooms * nights * season),
       confidence: band.source === "liteapi" ? `sampled (${age}d)` : "estimated",
-      detail: `${rooms} room(s) x ${nights} nights, ${req.tier} tier, from ${band.n} hotel prices`,
+      detail: `${rooms} room(s) x ${nights} nights, ${req.tier} tier, from ${band.n} hotel prices` +
+        (season !== 1 ? `, dates priced x${season.toFixed(2)} vs sample dates` : ""),
     };
   }
   const base = C.nightlyBase[req.tier] * (dest.priceLevel ?? 1);
@@ -123,7 +124,7 @@ export function pricePackage(dest, req, nights, month, today, C) {
   const flight = flightComponent(dest, req, nights, month, today, C);
   if (!flight) return null;
   if (Math.abs(flight.fare.nights - nights) <= tol) nights = flight.fare.nights;
-  const components = [flight.comp, lodgingComponent(dest, req, nights, month, today, C), dailyComponent(dest, req, nights, C)];
+  const components = [flight.comp, lodgingComponent(dest, req, nights, month, today, C, flight.fare.season ?? 1), dailyComponent(dest, req, nights, C)];
   const total = components.reduce((acc, c) => add(acc, c), { low: 0, expected: 0, high: 0 });
   const fit = total.expected <= req.budget ? "within" : total.low <= req.budget ? "stretch" : "over";
   return { dest, nights, month, fare: flight.fare, components, total, fit };

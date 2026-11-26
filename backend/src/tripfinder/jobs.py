@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import sqlite3
 import statistics
+import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
@@ -183,6 +184,40 @@ def rebuild_bands(conn: sqlite3.Connection, min_sample: int = 5) -> int:
     return n
 
 
+def index_city_names(s: Settings) -> dict[str, list[str]]:
+    """City names to try with LiteAPI's price index when ours don't match (e.g. 'Denpasar (Bali)')."""
+    path = s.seed_dir / "price_index_cities.csv"
+    if not path.exists():
+        return {}
+    with path.open(encoding="utf8") as f:
+        return {r["code"]: [c.strip() for c in r["cities"].split("|") if c.strip()] for r in csv.DictReader(f)}
+
+
+def refresh_seasonality(conn: sqlite3.Connection, s: Settings, pause_s: float = 6.5) -> dict[str, int]:
+    """Daily hotel price index per destination, a year ahead. The endpoint allows 10 calls a minute. Run weekly."""
+    meter = Meter(conn, "seasonality")
+    overrides = index_city_names(s)
+    covered = days = 0
+    first = True
+    for d in _selected(conn):
+        for city in [*overrides.get(d["code"], []), d["name"]]:
+            if not first:
+                time.sleep(pause_s)  # stay under 10 calls a minute
+            first = False
+            try:
+                rows = p.fetch_price_index(meter, s, d["country_code"], city)
+            except ApiError:
+                rows = []
+            if rows:
+                conn.execute("DELETE FROM price_index WHERE destination = ?", (d["code"],))
+                conn.executemany("INSERT INTO price_index VALUES (?,?,?,?)", [(d["code"], day, usd, _now()) for day, usd in rows])
+                conn.commit()
+                covered += 1
+                days += len(rows)
+                break
+    return {"destinations": covered, "days": days}
+
+
 # --- Scheduled entry point -------------------------------------------------------------------
 
 # How old each dataset may get before `refresh auto` refreshes it.
@@ -191,6 +226,7 @@ MAX_AGE = {
     "select": timedelta(days=30),  # destination list
     "flights": timedelta(hours=20),  # daily
     "hotels": timedelta(days=6),  # weekly
+    "seasonality": timedelta(days=6),  # weekly (paid beta endpoint: about 25 calls a week)
 }
 
 
@@ -208,6 +244,7 @@ def due_steps(conn: sqlite3.Connection, now: datetime | None = None) -> dict[str
         "select": count("SELECT COUNT(*) FROM destinations WHERE selected = 1") == 0,
         "flights": count("SELECT COUNT(*) FROM fares") == 0,
         "hotels": count("SELECT COUNT(*) FROM lodging_bands") == 0,
+        "seasonality": count("SELECT COUNT(*) FROM price_index") == 0,
     }
     due: dict[str, str] = {}
     for step, max_age in MAX_AGE.items():
@@ -220,6 +257,7 @@ def due_steps(conn: sqlite3.Connection, now: datetime | None = None) -> dict[str
         # New destinations need fresh flights and hotels too.
         due.setdefault("flights", "destination list changed")
         due.setdefault("hotels", "destination list changed")
+        due.setdefault("seasonality", "destination list changed")
     return due
 
 
@@ -228,7 +266,13 @@ def refresh_auto(conn: sqlite3.Connection, s: Settings, force: tuple[str, ...] =
     due = due_steps(conn)
     for step in force:
         due.setdefault(step, "forced")
-    steps = {"reference": refresh_reference, "select": select_destinations, "flights": refresh_flights, "hotels": refresh_hotels}
+    steps = {
+        "reference": refresh_reference,
+        "select": select_destinations,
+        "flights": refresh_flights,
+        "hotels": refresh_hotels,
+        "seasonality": refresh_seasonality,
+    }
     outcome: dict[str, str] = {}
     for step, fn in steps.items():
         if step not in due:
