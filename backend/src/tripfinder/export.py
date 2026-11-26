@@ -45,9 +45,12 @@ def load_themes(seed_dir) -> dict[str, dict]:
     return out
 
 
-def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = None) -> dict:
+def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = None, origin: dict | None = None,
+                   all_origins: list[dict] | None = None) -> dict:
+    """The site's data for one departure city (default: the settings origin)."""
     today = today or date.today()
-    dests = load_destinations(conn, today)
+    origin = origin or {"code": s.origin, "name": "Toronto", "slug": "toronto"}
+    dests = load_destinations(conn, today, origin["code"])
     countries = {d.country_code for d in dests}
     advisories = {
         r["country_code"]: {"level": r["level"], "text": r["text"], "url": r["url"]}
@@ -68,7 +71,7 @@ def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = N
                 **themes.get(d.code, {"themes": [], "bestFor": "", "todo": ""}),
                 # "Check hotels" link; the browser fills {checkin} {checkout} {adults} {children} {rooms}.
                 # Flight search for trips with no cached fare of that length; the browser fills {dep} {ret} {pax}.
-                "flightSearch": flight_search_link(s, d.code),
+                "flightSearch": flight_search_link(s, d.code, origin["code"]),
                 "hotel": hotel_link(s, d.name, d.country_code, d.code, "{checkin}", "{checkout}", "{adults}", "{children}", "{rooms}"),
                 "fares": [
                     {
@@ -102,7 +105,11 @@ def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = N
         "generatedAt": datetime.now(UTC).isoformat(timespec="seconds"),
         "today": today.isoformat(),
         "currency": s.currency,
-        "origin": s.origin,
+        "origin": origin["code"],
+        "originName": origin["name"],
+        "originSlug": origin["slug"],
+        # Departure cities with data, for the finder's "From" picker; each has site/data/<slug>.json.
+        "origins": [{"code": o["code"], "name": o["name"], "slug": o["slug"]} for o in (all_origins or [origin])],
         "constants": {
             "dailyBase": DAILY_BASE_CAD,
             "nightlyBase": NIGHTLY_BASE_CAD,
@@ -120,11 +127,24 @@ def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = N
 
 
 def write_snapshot(conn: sqlite3.Connection, s: Settings, out: Path) -> dict[str, int]:
-    snap = build_snapshot(conn, s)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    text = json.dumps(snap, separators=(",", ":"), ensure_ascii=False)
-    out.write_text(text, encoding="utf8")
-    return {"destinations": len(snap["destinations"]), "bytes": len(text.encode())}
+    """One file per departure city (site/data/<slug>.json) plus site/data.json for the default city, which the
+    finder loads first and the parity test and page generator read."""
+    from .jobs import origins as list_origins
+
+    cities = list_origins(s)
+    with_data = [o for o in cities if conn.execute("SELECT 1 FROM selection WHERE origin = ? LIMIT 1", (o["code"],)).fetchone()]
+    with_data = with_data or cities[:1]
+    sizes = {}
+    for o in with_data:
+        snap = build_snapshot(conn, s, origin=o, all_origins=with_data)
+        text = json.dumps(snap, separators=(",", ":"), ensure_ascii=False)
+        per_city = out.parent / "data" / f"{o['slug']}.json"
+        per_city.parent.mkdir(parents=True, exist_ok=True)
+        per_city.write_text(text, encoding="utf8")
+        if o["code"] == s.origin:
+            out.write_text(text, encoding="utf8")
+        sizes[o["slug"]] = len(snap["destinations"])
+    return {"destinations": sizes, "bytes": out.stat().st_size if out.exists() else 0}
 
 
 # Requests the browser engine must price exactly like the Python engine (checked by site/tests/parity.test.mjs).

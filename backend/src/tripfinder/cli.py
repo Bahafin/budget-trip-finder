@@ -77,7 +77,8 @@ def main(argv: list[str] | None = None) -> int:
         from . import assets
         from .meter import Meter
 
-        dests = json.loads(Path(args.data).read_text(encoding="utf8"))["destinations"]
+        files = [Path(args.data), *sorted((Path(args.data).parent / "data").glob("*.json"))]
+        dests = list({d["code"]: d for f in files if f.exists() for d in json.loads(f.read_text(encoding="utf8"))["destinations"]}.values())
         missing = assets.check(dests, settings.seed_dir, assets.load_photos())
         if args.fill_photos and missing["photo"]:
             added = assets.fill_photos(Meter(conn, "assets"), missing["photo"])

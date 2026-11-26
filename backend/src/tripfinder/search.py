@@ -26,7 +26,8 @@ from .links import flight_link, hotel_link
 from .money import Money, PriceRange
 
 
-def load_destinations(conn: sqlite3.Connection, today: date | None = None) -> list[DestinationData]:
+def load_destinations(conn: sqlite3.Connection, today: date | None = None, origin: str = "YTO") -> list[DestinationData]:
+    """Destinations shown from one departure city, with that city's fares (hotels and prices are shared)."""
     today = today or date.today()
     levels = {r["country_code"]: Decimal(str(r["ratio_to_usd"])) for r in conn.execute("SELECT * FROM price_levels")}
     canada = levels.get("CA")
@@ -52,7 +53,7 @@ def load_destinations(conn: sqlite3.Connection, today: date | None = None) -> li
         return season_factor(index[dest], start, nights, depart, (ret - depart).days)
 
     fares: dict[str, list[Fare]] = defaultdict(list)
-    for r in conn.execute("SELECT * FROM fares WHERE depart >= ?", (today.isoformat(),)):
+    for r in conn.execute("SELECT * FROM fares WHERE depart >= ? AND origin = ?", (today.isoformat(), origin)):
         depart, ret = date.fromisoformat(r["depart"]), date.fromisoformat(r["ret"])
         fares[r["destination"]].append(
             Fare(
@@ -67,7 +68,10 @@ def load_destinations(conn: sqlite3.Connection, today: date | None = None) -> li
         rng = PriceRange(Money.of(r["nightly_low"], r["currency"]), Money.of(r["nightly_mid"], r["currency"]), Money.of(r["nightly_high"], r["currency"]))
         bands[r["destination"]][(r["month"], r["tier"])] = LodgingBand(rng, r["sample_size"], date.fromisoformat(r["as_of"]), r["source"])
     out = []
+    shown = {r[0] for r in conn.execute("SELECT code FROM selection WHERE origin = ?", (origin,))}
     for r in conn.execute("SELECT * FROM destinations WHERE selected = 1"):
+        if shown and r["code"] not in shown:
+            continue
         lvl = levels.get(r["country_code"])
         rel = (lvl / canada).quantize(Decimal("0.01")) if lvl and canada else None
         out.append(DestinationData(r["code"], r["name"], r["country_code"], fares[r["code"]], bands[r["code"]], rel))

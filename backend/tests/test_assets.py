@@ -36,3 +36,10 @@ def test_check_lists_missing_photos_and_themes(tmp_path):
     assert [x["code"] for x in m["theme"]] == ["BBB"]
     assert [x["code"] for x in m["photo_review"]] == ["CCC"]
     assert "BBB: B (VN)" in theme_request(m["theme"])
+
+
+def test_pick_photo_must_name_the_place():
+    woods = _page("Wandering_in_the_Woods.jpg", "CC BY 2.0", desc="A walk in the woods")
+    beach = _page("Patong_beach_Phuket.jpg", "CC BY 2.0", desc="Patong beach")
+    assert pick_photo([woods, beach], "Phuket")["src"].endswith("Patong_beach_Phuket.jpg")
+    assert pick_photo([woods], "Phuket") is None

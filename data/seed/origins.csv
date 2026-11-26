@@ -1,0 +1,4 @@
+code,name,slug,note
+YTO,Toronto,toronto,"All Toronto airports (Pearson, Billy Bishop). Development city."
+YMQ,Montreal,montreal,"All Montreal airports. Test city added 2026-11-26: 14 destinations with 5+ cached fares in a bulk check."
+YVR,Vancouver,vancouver,"Test city added 2026-11-26: 21 destinations with 5+ cached fares in a bulk check."

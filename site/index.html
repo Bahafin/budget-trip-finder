@@ -90,7 +90,7 @@
          display: grid; gap: 12px; grid-template-columns: repeat(6, minmax(0, 1fr)); border: 1px solid var(--line); }
   form > .field { grid-column: span 2; }
   form > .field.wide { grid-column: span 3; }
-  form > .field.budget { grid-column: 1 / -1; }
+  form > .field.budget, form > .field.from { grid-column: span 3; }
   .field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
   input, select { font: 500 16px var(--font-body); color: var(--ink); background: var(--surface-2); border: 1px solid var(--line);
                   border-radius: 10px; padding: 11px 12px; min-width: 0; width: 100%; }
@@ -99,8 +99,8 @@
         border-radius: 10px; padding: 14px 18px; cursor: pointer; }
   .go:hover { background: var(--cta-hover); }
   @media (min-width: 760px) {
-    form { grid-template-columns: 1.3fr repeat(5, minmax(0, 1fr)) auto; align-items: end; padding: 18px; }
-    form > .field, form > .field.wide, form > .field.budget { grid-column: auto; }
+    form { grid-template-columns: 1.2fr 1.3fr repeat(5, minmax(0, 1fr)) auto; align-items: end; padding: 18px; }
+    form > .field, form > .field.wide, form > .field.budget, form > .field.from { grid-column: auto; }
     .go { grid-column: auto; height: 50px; }
   }
   .sortrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 28px 0 14px; }
@@ -218,8 +218,8 @@
         <svg width="34" height="28" viewBox="0 0 34 28" aria-hidden="true"><circle cx="24" cy="8" r="4.2" fill="#F2A541"/><path d="M4 22C8 8 19 6 28 22" stroke="#fff" stroke-width="2.2" stroke-dasharray="0.1 4.4" stroke-linecap="round" fill="none"/><path d="M1.5 23.5h31" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>
         <span class="brand-name">Budget Trip Finder</span>
       </a>
-      <span class="descriptor">Whole-trip budgets from Toronto</span>
-      <a class="toplink" href="from-toronto/">Trips by destination and month</a>
+      <span class="descriptor" id="descriptor">Whole-trip budgets from Toronto</span>
+      <a class="toplink" id="toplink" href="from-toronto/">Trips by destination and month</a>
     </div>
     <div class="hero-copy">
       <h1>See how far <span class="hero-amt"><span class="cur" aria-hidden="true">$</span><input id="budget" name="budget" form="f" type="text" inputmode="numeric" autocomplete="off" pattern="[0-9, ]*" value="3,000" required aria-label="Total budget for the whole trip, in Canadian dollars"><span class="pen" aria-hidden="true">✎ edit</span></span> goes.</h1>
@@ -232,6 +232,7 @@
 <main class="wrap">
   <section class="search" aria-label="Trip search">
     <form id="f">
+      <label class="field from">From<select id="from" aria-label="Departure city"><option value="">Toronto</option></select></label>
       <label class="field budget">Budget (CAD, whole trip)<input id="budget2" type="text" inputmode="numeric" autocomplete="off" pattern="[0-9, ]*" value="3,000"></label>
       <label class="field">Adults<input name="adults" type="number" inputmode="numeric" min="1" max="9" value="2"></label>
       <label class="field">Children<input name="children" type="number" inputmode="numeric" min="0" max="9" value="0"></label>
@@ -260,7 +261,7 @@
     <p><strong>Prices are estimates, not quotes.</strong> Confirm prices on the partner site before booking. Bookings are made with, and paid to, the partner, not us. Links may be affiliate links: we may earn a commission at no extra cost to you.</p>
     <p>Daily costs are scaled with World Bank price levels (CC BY 4.0). Travel advice from the Government of Canada (travel.gc.ca); always check the official page before you go.</p>
     <p>Destination photos from Wikimedia Commons; the photographer and licence are credited on each photo.</p>
-    <p><a href="from-toronto/">All trips from Toronto, by destination and month</a></p>
+    <p><a id="footlink" href="from-toronto/">All trips from Toronto, by destination and month</a></p>
   </footer>
 </main>
 
@@ -424,14 +425,34 @@ function card(p, req, data) {
 }
 
 // Destination pages written by `python -m tripfinder pages` (code -> path). Missing locally until then: no card links.
-const pageIndexP = fetch("./from-toronto/index.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
-const data = await (await fetch("./data.json", { cache: "no-cache" })).json();
-const pageIndex = await pageIndexP;
+// Departure city: ?from=<slug> loads site/data/<slug>.json; without it (or if that file is missing), data.json.
+const fromSlug = (new URLSearchParams(location.search).get("from") ?? "").replace(/[^a-z-]/g, "");
+const loadJson = (url) => fetch(url, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+const data = (fromSlug && (await loadJson(`./data/${fromSlug}.json`))) || (await loadJson("./data.json"));
+const originName = data.originName ?? "Toronto";
+const originSlug = data.originSlug ?? "toronto";
+const pageIndex = (await loadJson(`./from-${originSlug}/index.json`)) ?? {};
+// Switching city reloads the finder for that city, keeping the other inputs.
+const fromSel = document.getElementById("from");
+fromSel.replaceChildren(...(data.origins ?? [{ name: originName, slug: originSlug }]).map((o) => el("option", { value: o.slug }, o.name)));
+fromSel.value = originSlug;
+fromSel.addEventListener("change", () => {
+  const q = new URLSearchParams(location.search);
+  const fd = new FormData(f);
+  q.set("budget", budgetValue() ?? "");
+  for (const k of ["adults", "children", "nights", "month", "tier"]) fd.get(k) ? q.set(k, fd.get(k)) : q.delete(k);
+  q.set("from", fromSel.value);
+  location.search = q.toString();
+});
+for (const [id, text] of [["descriptor", `Whole-trip budgets from ${originName}`], ["footlink", `All trips from ${originName}, by destination and month`]]) {
+  document.getElementById(id).textContent = text;
+}
+for (const id of ["toplink", "footlink"]) document.getElementById(id).setAttribute("href", `from-${originSlug}/`);
 const dests = prepare(data, today);
 const months = [...new Set(dests.flatMap((d) => d.fares.map((f) => f.month)))].sort();
 for (const m of months) f.elements.month.append(el("option", { value: m }, monthName(m)));
 document.getElementById("fresh").textContent =
-  `Trip data updated ${data.generatedAt.slice(0, 10)}, covering ${dests.length} destinations from Toronto.`;
+  `Trip data updated ${data.generatedAt.slice(0, 10)}, covering ${dests.length} destinations from ${originName}.`;
 
 const sortSel = document.querySelector('select[name="sort"]');
 
@@ -549,7 +570,7 @@ function run(e) {
   const within = results.filter((p) => p.fit === "within").length;
   if (!results.length) {
     status.replaceChildren(`Nothing fits ${money(req.budget)} yet`, el("small", {}, "Try a bigger budget, fewer nights or the Budget comfort level."));
-    out.append(el("div", { class: "empty" }, `No whole trip from Toronto fits ${money(req.budget)} with these settings. Raise the number in the headline to see what opens up.`));
+    out.append(el("div", { class: "empty" }, `No whole trip from ${originName} fits ${money(req.budget)} with these settings. Raise the number in the headline to see what opens up.`));
     out.append(out.querySelector(".close") ?? "");  // keep the cheapest-trips list below the message
     return;
   }

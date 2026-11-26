@@ -373,6 +373,7 @@ def render(page: Page, snap: Snapshot, site_indexable: bool) -> str:
         asof_long=esc(day_long(snap.today)),
         finder=esc(root),
         hub=esc(rel(page.path, ORIGIN_SLUG + "/")),
+        origin_name=esc(ORIGIN_NAME),
         method=esc(rel(page.path, METHOD_PATH)),
     )
 
@@ -391,15 +392,16 @@ def newest_fare_date(snap: Snapshot) -> date:
 
 # ---- Shared sections ----------------------------------------------------------------------------------------
 
-INCLUDED = (
+INCLUDED_TEMPLATE = (
     '<section class="box"><h2>What\'s in these numbers, and what isn\'t</h2><div class="two">'
-    "<div><h3>Included</h3><ul><li>Return flights from Toronto for everyone</li><li>A hotel room for every night, "
+    "<div><h3>Included</h3><ul><li>Return flights from {origin} for everyone</li><li>A hotel room for every night, "
     "including fees the hotel charges on arrival when the hotel lists them</li><li>Day-to-day spending: food, local transport, "
     "modest entry fees</li></ul></div>"
     "<div><h3>Not included</h3><ul><li>All-inclusive meal plans (these are hotel-room prices)</li><li>Checked bags, if the fare "
     "doesn't include them</li><li>Travel insurance, tours, tips</li><li>Getting to and parking at the airport</li></ul></div>"
     "</div></section>"
 )
+INCLUDED = INCLUDED_TEMPLATE.replace("{origin}", "Toronto")
 
 
 def advisory_block(snap: Snapshot, d: DestinationData) -> str:
@@ -477,6 +479,8 @@ def partner_ctas(snap: Snapshot, d: DestinationData, fare: Fare, adults: int = A
 def finder_link(page_path: str, params: dict[str, Any] | None = None) -> str:
     """Button into the trip finder, pre-filled with this page's trip (index.html reads these query parameters)."""
     href = rel(page_path, "")
+    if ORIGIN_SLUG != "from-toronto":  # the finder loads Toronto unless told otherwise
+        params = {"from": ORIGIN_SLUG.removeprefix("from-"), **(params or {})}
     if params:
         href += "?" + urlencode({k: v for k, v in params.items() if v is not None})
     label = "Change the budget, dates or group size" if params else "Try your own budget, dates and group size"
@@ -487,7 +491,7 @@ def signup_box(topic: str) -> str:
     """`topic` is HTML (escape plain text before passing it)."""
     # Placeholder until the owner picks an email provider (CASL consent + unsubscribe). No form, no data collected.
     return (f'<section class="box signup"><h2>Get a monthly email about {topic}</h2>'
-            "<p>Coming soon: one email a month when whole trips from Toronto get cheaper. No spam, unsubscribe any time.</p></section>")
+            f"<p>Coming soon: one email a month when whole trips from {esc(ORIGIN_NAME)} get cheaper. No spam, unsubscribe any time.</p></section>")
 
 
 # ---- Page builders ----------------------------------------------------------------------------------------
@@ -940,7 +944,7 @@ class Builder:
             for m in self.months()
         )
         mb = ""
-        if any(s + timedelta(days=4) >= self.snap.today for s in MARCH_BREAK.values()):
+        if ORIGIN_SLUG == "from-toronto" and any(s + timedelta(days=4) >= self.snap.today for s in MARCH_BREAK.values()):
             mb = f'<li><a href="{esc(rel(path, ORIGIN_SLUG + "/march-break/"))}">March break from {esc(ORIGIN_NAME)}</a></li>'
         body = (f'<p class="answer">Whole-trip estimates from {esc(ORIGIN_NAME)} for {len(cards)} destinations: flights, a hotel and '
                 f"day-to-day spending for two, in CAD, estimated on {esc(day_long(self.snap.today))}.</p>"
@@ -1039,7 +1043,7 @@ class Builder:
             ('<p class="answer">Every total on this site is an estimate of the whole trip: return flights for everyone, a hotel room '
              "for every night and day-to-day spending, added up in Canadian dollars and shown as a range (low, expected, high). "
              f"The numbers are rebuilt every day from the data we hold. The latest refresh was on {esc(day_long(self.snap.today))}.</p>"),
-            ("<h2>Flights</h2><p>We use cached return fares from Toronto (Travelpayouts/Aviasales): prices other travellers saw in recent "
+            (f"<h2>Flights</h2><p>We use cached return fares from {esc(ORIGIN_NAME)} (Travelpayouts/Aviasales): prices other travellers saw in recent "
             "searches, each with the date it was seen. For a trip, we take the cheapest cached fare for the dates and add a margin for the "
             "expected figure and a bigger one for the high figure, because cached fares are often gone by the time you search. "
             "Fares only reach about three months ahead.</p>"),
@@ -1107,15 +1111,46 @@ class Builder:
             self.month_hub(m)
             for b in BUDGETS:
                 self.month_budget(m, b)
-        self.march_break()
+        if ORIGIN_SLUG == "from-toronto":  # Ontario's March break dates; other provinces differ
+            self.march_break()
         self.method_page()
         return self.pages
 
 
 # ---- Writing -----------------------------------------------------------------------------------------------
 
+def set_origin(name: str, slug: str) -> None:
+    """Point the module-level wording and paths at one departure city before building its pages."""
+    global ORIGIN_NAME, ORIGIN_SLUG, BRAND_DESCRIPTOR, METHOD_PATH, INCLUDED
+    ORIGIN_NAME, ORIGIN_SLUG = name, f"from-{slug}"
+    BRAND_DESCRIPTOR = f"Whole-trip budgets from {name}"
+    METHOD_PATH = f"{ORIGIN_SLUG}/how-we-estimate/"
+    INCLUDED = INCLUDED_TEMPLATE.replace("{origin}", esc(name))
+
+
 def generate(snapshot_path: Path | None = None, site_dir: Path | None = None, indexable: bool | None = None,
              manifest_path: Path | None = None, checks_path: Path | None = None) -> dict[str, int]:
+    """Pages for every departure city with a data file (site/data/<slug>.json), or site/data.json alone."""
+    site_dir = site_dir or ROOT / "site"
+    if snapshot_path is None and (site_dir / "data").is_dir():
+        files = sorted((site_dir / "data").glob("*.json"))
+    else:
+        files = [snapshot_path or site_dir / "data.json"]
+    totals = {"pages": 0, "pass_gate": 0, "indexable": 0, "priced": 0}
+    for f in files:
+        snap_origin = json.loads(f.read_text(encoding="utf8"))
+        set_origin(snap_origin.get("originName", "Toronto"), snap_origin.get("originSlug", "toronto"))
+        mp = manifest_path or site_dir / "tests" / f"pages-manifest-{snap_origin.get('originSlug', 'toronto')}.json"
+        r = _generate_one(f, site_dir, indexable, mp, checks_path)
+        for k in totals:
+            totals[k] += r[k]
+    set_origin("Toronto", "toronto")
+    return totals
+
+
+def _generate_one(snapshot_path: Path | None = None, site_dir: Path | None = None, indexable: bool | None = None,
+                  manifest_path: Path | None = None, checks_path: Path | None = None) -> dict[str, int]:
+
     site_dir = site_dir or ROOT / "site"
     snapshot_path = snapshot_path or site_dir / "data.json"
     manifest_path = manifest_path or site_dir / "tests" / "pages-manifest.json"

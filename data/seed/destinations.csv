@@ -1,26 +1,57 @@
-code,name,country
-AMS,Amsterdam,NL
-BKK,Bangkok,TH
-CHI,Chicago,US
-CUN,Cancun,MX
-DFW,Dallas,US
-DPS,Denpasar (Bali),ID
-DXB,Dubai,AE
-FLL,Fort Lauderdale,US
-FRA,Frankfurt,DE
-HKG,Hong Kong,HK
-HNL,Honolulu,US
-IST,Istanbul,TR
-KIN,Kingston,JM
-LIR,Liberia,CR
-LON,London,GB
-NYC,New York,US
-ORL,Orlando,US
-PAR,Paris,FR
-PTY,Panama City,PA
-PUJ,Punta Cana,DO
-TYO,Tokyo,JP
-YEA,Edmonton,CA
-YMQ,Montreal,CA
-YVR,Vancouver,CA
-YYC,Calgary,CA
+origin,code,name,country
+YTO,AMS,Amsterdam,NL
+YTO,BKK,Bangkok,TH
+YTO,CHI,Chicago,US
+YTO,CUN,Cancun,MX
+YTO,DFW,Dallas,US
+YTO,DPS,Denpasar (Bali),ID
+YTO,DXB,Dubai,AE
+YTO,FLL,Fort Lauderdale,US
+YTO,FRA,Frankfurt,DE
+YTO,HKG,Hong Kong,HK
+YTO,HNL,Honolulu,US
+YTO,IST,Istanbul,TR
+YTO,KIN,Kingston,JM
+YTO,LIR,Liberia,CR
+YTO,LON,London,GB
+YTO,NYC,New York,US
+YTO,ORL,Orlando,US
+YTO,PAR,Paris,FR
+YTO,PTY,Panama City,PA
+YTO,PUJ,Punta Cana,DO
+YTO,TYO,Tokyo,JP
+YTO,YEA,Edmonton,CA
+YTO,YMQ,Montreal,CA
+YTO,YVR,Vancouver,CA
+YTO,YYC,Calgary,CA
+YTO,MEX,Mexico City,MX
+YMQ,CUN,Cancun,MX
+YMQ,PUJ,Punta Cana,DO
+YMQ,FLL,Fort Lauderdale,US
+YMQ,PAR,Paris,FR
+YMQ,LIS,Lisbon,PT
+YMQ,BCN,Barcelona,ES
+YMQ,TCI,Tenerife,ES
+YMQ,CMN,Casablanca,MA
+YMQ,IST,Istanbul,TR
+YMQ,NYC,New York,US
+YMQ,BKK,Bangkok,TH
+YMQ,DXB,Dubai,AE
+YMQ,YYC,Calgary,CA
+YVR,TYO,Tokyo,JP
+YVR,SEL,Seoul,KR
+YVR,BKK,Bangkok,TH
+YVR,HKT,Phuket,TH
+YVR,DAD,Da Nang,VN
+YVR,CUN,Cancun,MX
+YVR,PVR,Puerto Vallarta,MX
+YVR,MEX,Mexico City,MX
+YVR,HNL,Honolulu,US
+YVR,PAR,Paris,FR
+YVR,LON,London,GB
+YVR,BCN,Barcelona,ES
+YVR,IST,Istanbul,TR
+YVR,ATH,Athens,GR
+YVR,AKL,Auckland,NZ
+YVR,YTO,Toronto,CA
+YVR,YMQ,Montreal,CA

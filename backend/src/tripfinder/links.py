@@ -60,10 +60,10 @@ def flight_link(s: Settings, cache_link: str, destination: str) -> str:
     return tracked(s, "aviasales", aviasales_page(cache_link), f"site-{destination}-flight")
 
 
-def flight_search_link(s: Settings, destination: str) -> str:
+def flight_search_link(s: Settings, destination: str, origin: str | None = None) -> str:
     """Aviasales search from Toronto for any dates; the browser fills {dep} {ret} (DDMM) and {pax}
     (adults digit, then children digit if any). Used when no cached fare matches the trip's length."""
-    page = f"https://www.aviasales.com/search/YTO{{dep}}{destination}{{ret}}{{pax}}"
+    page = f"https://www.aviasales.com/search/{origin or s.origin}{{dep}}{destination}{{ret}}{{pax}}"
     return tracked(s, "aviasales", page, f"site-{destination}-flight")
 
 

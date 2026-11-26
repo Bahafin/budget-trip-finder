@@ -22,6 +22,14 @@ What changed is that the proof of concept is done. The next job is to make it go
 | Spot check against Google Flights and Booking.com: whole-trip estimates within -8% to +4% after the flight fix | docs/validation-2026-11-24.md |
 | API and partner research: what Travelpayouts and LiteAPI offer, which affiliate programs are open | docs/api-coverage-check.md, docs/affiliate-programs-check.md |
 | Affiliate programs joined: Aviasales, Klook, KKday (Travelpayouts) | TODO.md |
+| Gate A (2026-11-26): 50 trips checked by hand, median whole-trip error 11%, PASS (sandbox hotel prices) | docs/gate-a/report.md |
+| Competitor tests: ChatGPT, Gemini, Google Flights Explore; 15 feature ideas | docs/research/ |
+
+**Decisions 2026-11-26:**
+- **Name:** Far Enough. **Development domain:** farenoughtrips.com; farenough.ca held as the likely launch domain. The site stays hidden from search engines until the launch domain is final.
+- **Several departure cities at launch, not just Toronto.** Toronto is the development city; Montreal and Vancouver are the first test cities. Everything built from now on is departure-city aware (1.8).
+- **Hosting (recommended, owner's call):** Cloudflare Pages for the site and small server functions, GitHub for code and the daily refresh. **Email:** forwarding for hello@, MailerLite (suggested) for sign-ups, CASL double opt-in. See TODO.md.
+- **Destination list in the repo** (data/seed/destinations.csv), per departure city from 1.8. Photos are real Wikimedia photos, never AI-generated.
 
 **Ruled out:**
 - Hotellook (shut down).
@@ -91,6 +99,12 @@ Goal: testers see fresh, accurate-looking trips, and every click can earn.
 
 Done when the live site refreshes itself daily, links are tracked, and the 3-trip spot check still holds.
 
+- [x] **1.8 Several departure cities** (built 2026-11-26). Toronto (26 destinations), Montreal (13) and Vancouver (17); 37 destinations in all, 14 of them new (themes written, photos reviewed). Pairs with under 5 cached fares were dropped (Montreal to London, Madrid and Vancouver; Vancouver to Los Angeles and Los Cabos). The March break page stays Toronto-only (Ontario dates). Fare depth checked: Calgary is thin, and Ottawa, Halifax, Winnipeg and Edmonton are too thin for now. Moved up from Stage 4 (decision 2026-11-26). A list of departure cities in the repo; flights stored per city; a destination list per city; one data file per city; a "From" picker on the finder; pages under /from-<city>/; wording driven by the city. Then a new city is one row in a file plus a check that the flight cache has enough fares for it.
+- [x] **1.9 Save fare history daily** (started 2026-11-26: tables fare_history and band_history; 826 fare rows on day one). Showing it waits for 30-60 days of data (research #14). Cheapest fare per departure city x destination x month x trip length, plus the hotel band, one row per day. Each refresh overwrites the cache, and history can't be bought back later. After 30-60 days: "about $110 below what we've seen for these dates", worded exactly (Competition Act; no "sale" or "save").
+- [ ] **1.10 Card additions** (research #12, #11 part): "Leaves about $X for extras" on trips that fit; a route line ("Toronto → Cancun, direct").
+
+**Feature backlog:** docs/research/feature-ideas.md (15 ideas, each checked against the Phase 1 rules). Next candidates after 1.8-1.10: ground trips by train or car (#7), results map (#11), when to visit (#15), chat-style search prototype (#2).
+
 ### Stage 2: Gate A, the 50-trip accuracy test (about 2 weeks, mostly elapsed time)
 
 Needs the LiteAPI **production** key, so hotel prices are real rather than sandbox.
@@ -116,6 +130,7 @@ Done when the Gate A report exists. **This is the evidence for the employer and 
 ### Stage 3: Landing page and demand test (Gate C, in parallel)
 
 - [x] Brand name chosen: **Far Enough** (2026-11-26); plans in docs/brand/ and docs/content/. Domain and handles to register (owner, TODO.md).
+- [ ] **Hosting move** (once the owner has the domain and a Cloudflare account): Cloudflare Pages with the custom domain, rename the site to Far Enough, hello@ forwarding. The daily GitHub workflow only changes its deploy step.
 - [ ] Landing page: the pitch, a few live example trips, email sign-up, affiliate disclosure. It also gives the Booking.com (CJ) and Skyscanner applications a real site to review.
 - [ ] Simple, privacy-friendly analytics: visits, sign-ups, clicks.
 - [ ] Run 4-6 weeks against the **agreed Gate C thresholds** (2026-11-26), judged after at least 1,000 unique visitors:
@@ -129,7 +144,7 @@ Done when the Gate A report exists. **This is the evidence for the employer and 
 
 - [ ] Hosted backend: Postgres, search API, two-stage pipeline (cached discovery, then a live check of the top results via LiteAPI flights once production flights are activated).
 - [ ] Destination page: Viator activities (live, on open), know-before-you-go notes for all 25 destinations, entry requirements (replace the scraped visa data before scaling).
-- [ ] More origins (Montreal, Vancouver), flexible dates, price alerts.
+- [ ] Flexible dates, price alerts (more origins moved up to 1.8).
 - [ ] Click logging and the Travelpayouts statistics API for Gate D.
 - [ ] LLM layer: free-text trip requests, "why this fits" blurbs. It never produces prices.
 - [ ] Hardening: monitoring, rate limits, legal copy, privacy policy.

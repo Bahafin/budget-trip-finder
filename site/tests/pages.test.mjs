@@ -1,15 +1,20 @@
 // node --test site/tests/pages.test.mjs: every number on the generated pages must be what the browser engine
 // gives for the same request. `python -m tripfinder pages` writes pages-manifest.json with each priced call.
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 import { bestPackage, prepare, pricePackage } from "../engine.js";
 
 const here = new URL(".", import.meta.url);
-const manifestUrl = new URL("pages-manifest.json", here);
+// One manifest per departure city (pages-manifest-<slug>.json), checked against that city's data file.
+const cities = existsSync(new URL("../data/", here))
+  ? readdirSync(new URL("../data/", here)).filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -5))
+  : [];
 
-test("pages manifest matches the browser engine", { skip: !existsSync(manifestUrl) && "run `python -m tripfinder pages` first" }, () => {
-  const snapshot = JSON.parse(readFileSync(new URL("../data.json", here), "utf8"));
+for (const slug of cities) {
+const manifestUrl = new URL(`pages-manifest-${slug}.json`, here);
+test(`pages manifest matches the browser engine (${slug})`, { skip: !existsSync(manifestUrl) && "run `python -m tripfinder pages` first" }, () => {
+  const snapshot = JSON.parse(readFileSync(new URL(`../data/${slug}.json`, here), "utf8"));
   const manifest = JSON.parse(readFileSync(manifestUrl, "utf8"));
   const C = snapshot.constants;
   const today = manifest.today;
@@ -35,3 +40,4 @@ test("pages manifest matches the browser engine", { skip: !existsSync(manifestUr
     }
   }
 });
+}

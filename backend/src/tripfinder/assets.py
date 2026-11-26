@@ -71,8 +71,10 @@ def _strip(html: str) -> str:
     return re.sub(r"<[^>]+>", "", html or "").strip()
 
 
-def pick_photo(pages: list[dict[str, Any]]) -> dict[str, str] | None:
-    """The first wide, large, reusable image among Commons search results."""
+def pick_photo(pages: list[dict[str, Any]], place: str = "") -> dict[str, str] | None:
+    """The first wide, large, reusable image among Commons search results whose title or description names the
+    place (search results drift: "Phuket" once returned a woodland walk)."""
+    want = slugify(place).replace("-", " ") if place else ""
     for p in pages:
         info = (p.get("imageinfo") or [{}])[0]
         meta = info.get("extmetadata", {})
@@ -81,6 +83,9 @@ def pick_photo(pages: list[dict[str, Any]]) -> dict[str, str] | None:
         if not (OK_LICENSES.match(lic) and w >= 2000 and w / h >= 1.3 and info.get("thumburl")):
             continue
         title = p["title"].removeprefix("File:")
+        text = slugify(title + " " + _strip(meta.get("ImageDescription", {}).get("value", ""))).replace("-", " ")
+        if want and want not in text:
+            continue
         return {
             "src": info["thumburl"].split("?")[0],
             "alt": _strip(meta.get("ImageDescription", {}).get("value", ""))[:140] or title.rsplit(".", 1)[0],
@@ -106,7 +111,7 @@ def find_photo(meter: Meter, name: str) -> dict[str, str] | None:
             headers={"User-Agent": UA},
         )
         pages = sorted((data.get("query") or {}).get("pages", {}).values(), key=lambda p: p.get("index", 0))
-        found = pick_photo(pages)
+        found = pick_photo(pages, name)
         if found:
             return found
     return None

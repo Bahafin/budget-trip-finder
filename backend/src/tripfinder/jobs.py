@@ -8,6 +8,7 @@ import statistics
 import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 
 from . import providers as p
@@ -48,18 +49,38 @@ def refresh_reference(conn: sqlite3.Connection, s: Settings) -> dict[str, int]:
     return {"price_levels": len(levels), "advisories": len(advisories), "airlines": len(airlines)}
 
 
-def pinned_list(s: Settings) -> list[str]:
-    """The destination list kept in the repo (data/seed/destinations.csv), so every machine shows the same
-    places and a change to the list is a reviewed commit. Without the file, selection falls back to ranking."""
+def origins(s: Settings) -> list[dict[str, str]]:
+    """Departure cities (data/seed/origins.csv): code, name, slug. Without the file, just the settings origin."""
+    path = s.seed_dir / "origins.csv"
+    if not path.exists():
+        return [{"code": s.origin, "name": "Toronto", "slug": "toronto"}]
+    return [{"code": r["code"].strip(), "name": r["name"].strip(), "slug": r["slug"].strip()}
+            for r in csv.DictReader(path.open(encoding="utf8")) if r["code"].strip()]
+
+
+def pinned_pairs(s: Settings) -> dict[str, list[str]]:
+    """The destination list per departure city, kept in the repo (data/seed/destinations.csv), so every machine
+    shows the same places and a change to a list is a reviewed commit. Without the file, selection ranks."""
     path = s.seed_dir / "destinations.csv"
     if not path.exists():
-        return []
-    return [r["code"].strip() for r in csv.DictReader(path.open(encoding="utf8")) if r["code"].strip()]
+        return {}
+    out: dict[str, list[str]] = {}
+    for r in csv.DictReader(path.open(encoding="utf8")):
+        if r["code"].strip():
+            out.setdefault((r.get("origin") or s.origin).strip(), []).append(r["code"].strip())
+    return out
+
+
+def pinned_list(s: Settings) -> list[str]:
+    """Every pinned destination, across departure cities."""
+    return sorted({c for codes in pinned_pairs(s).values() for c in codes})
 
 
 def list_key(s: Settings) -> str:
     """What the current selection was made from; a change makes selection due."""
-    return "pinned:" + ",".join(sorted(pinned_list(s))) + "|extra:" + ",".join(sorted(always_include(s)))
+    pairs = pinned_pairs(s)
+    pinned = ";".join(f"{o}={','.join(sorted(pairs[o]))}" for o in sorted(pairs))
+    return "pinned:" + pinned + "|extra:" + ",".join(sorted(always_include(s)))
 
 
 def always_include(s: Settings) -> list[str]:
@@ -128,15 +149,28 @@ def select_destinations(conn: sqlite3.Connection, s: Settings) -> list[str]:
         code for code in counts
         if (c := cities.get(code)) and c.get("coordinates") and code != s.origin and c["country_code"] not in blocked
     }
-    pinned = pinned_list(s)
-    if pinned:
+    pairs = pinned_pairs(s)
+    if pairs:
+        pinned = pinned_list(s)
         eligible |= {c for c in pinned if (x := cities.get(c)) and x.get("coordinates") and x["country_code"] not in blocked}
         extras = [c for c in always_include(s) if c in eligible and c not in pinned]
-        chosen = [c for c in pinned if c in eligible] + extras
-        suggest = [c for c, _ in counts.most_common(40) if c in eligible and c not in chosen][:5]
+        per_origin = {o: [c for c in codes if c in eligible and c != o] for o, codes in pairs.items()}
+        per_origin.setdefault(s.origin, [])
+        per_origin[s.origin] += [c for c in extras if c not in per_origin[s.origin]]
+        chosen = sorted({c for codes in per_origin.values() for c in codes})
         _store_selection(conn, s, cities, eligible, counts, chosen)
-        if suggest:
-            print("busy routes not on the list (add to data/seed/destinations.csv to include):", ", ".join(suggest))
+        conn.execute("DELETE FROM selection")
+        conn.executemany("INSERT OR IGNORE INTO selection VALUES (?, ?)",
+                         [(o, c) for o, codes in per_origin.items() for c in codes])
+        conn.commit()
+        for o in per_origin:  # suggestions: busy routes from each departure city that aren't on its list
+            oc: Counter[str] = Counter()
+            for month in upcoming_months(s.months_ahead):
+                oc.update(f.destination for f in p.fetch_fares(meter, replace(s, origin=o), month))
+            suggest = [c for c, _ in oc.most_common(40) if (x := cities.get(c)) and x.get("coordinates")
+                       and x["country_code"] not in blocked and c not in per_origin[o] and c != o][:5]
+            if suggest:
+                print(f"busy routes from {o} not on its list (add to data/seed/destinations.csv):", ", ".join(suggest))
         return chosen
     current = [r[0] for r in conn.execute("SELECT code FROM destinations WHERE selected = 1 ORDER BY fares_seen DESC")]
     stored = dict(conn.execute("SELECT destination, COUNT(*) FROM fares WHERE depart >= ? GROUP BY destination", (date.today().isoformat(),)).fetchall())
@@ -170,19 +204,35 @@ def refresh_flights(conn: sqlite3.Connection, s: Settings) -> dict[str, int]:
     today = date.today()
     conn.execute("DELETE FROM fares WHERE depart < ?", (today.isoformat(),))
     rows = 0
-    for d in _selected(conn):
+    for origin, code in conn.execute("SELECT origin, code FROM selection ORDER BY origin, code").fetchall():
+        so = replace(s, origin=origin)
         for month in upcoming_months(s.months_ahead):
-            fares = p.fetch_fares(meter, s, month, destination=d["code"])
+            fares = p.fetch_fares(meter, so, month, destination=code)
             conn.executemany(
-                "INSERT OR REPLACE INTO fares VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "INSERT OR REPLACE INTO fares VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 [
-                    (f.destination, f.depart.isoformat(), f.ret.isoformat(), f.price, s.currency, f.airline, f.transfers, f.link, f.found_on.isoformat(), _now())
+                    (origin, f.destination, f.depart.isoformat(), f.ret.isoformat(), f.price, s.currency, f.airline,
+                     f.transfers, f.link, f.found_on.isoformat(), _now())
                     for f in fares
                 ],
             )
             rows += len(fares)
     conn.commit()
-    return {"fares": rows}
+    return {"fares": rows, "history_rows": save_fare_history(conn, today)}
+
+
+def save_fare_history(conn: sqlite3.Connection, today: date) -> int:
+    """Keep what today's cache shows: cheapest fare per departure city, destination, month and trip length.
+    The fares table only holds the current cache, and this history can't be rebuilt later (PLAN 1.9)."""
+    nights = "CAST(julianday(ret) - julianday(depart) AS INTEGER)"
+    conn.execute(
+        f"INSERT OR REPLACE INTO fare_history SELECT ?, origin, destination, substr(depart, 1, 7), {nights}, "
+        f"MIN(price), COUNT(*), currency FROM fares WHERE depart >= ? "
+        f"GROUP BY origin, destination, substr(depart, 1, 7), {nights}, currency",
+        (today.isoformat(), today.isoformat()),
+    )
+    conn.commit()
+    return conn.execute("SELECT COUNT(*) FROM fare_history WHERE day = ?", (today.isoformat(),)).fetchone()[0]
 
 
 def tier_for(stars: float | None) -> str | None:
@@ -287,6 +337,10 @@ def rebuild_bands(conn: sqlite3.Connection, min_sample: int = 5, drop_all_inclus
             "INSERT OR REPLACE INTO lodging_bands VALUES (?,?,?,?,?,?,?,?,?,?)",
             (dest, month, tier, round(q1, 2), round(med, 2), round(q3, 2), cur, len(prices), "liteapi", as_of[(dest, month)]),
         )
+        conn.execute(  # history of the bands, one row per day (PLAN 1.9)
+            "INSERT OR REPLACE INTO band_history VALUES (?,?,?,?,?,?,?,?)",
+            (date.today().isoformat(), dest, month, tier, round(q1, 2), round(med, 2), round(q3, 2), len(prices)),
+        )
         n += 1
     conn.commit()
     return n
@@ -364,7 +418,7 @@ def due_steps(conn: sqlite3.Connection, now: datetime | None = None, extras: lis
             due[step] = f"last refreshed {last:%Y-%m-%d %H:%M} UTC" if last else "never refreshed"
     if pinned:
         key = conn.execute("SELECT value FROM meta WHERE key = 'lists'").fetchone()
-        want = "pinned:" + ",".join(sorted(pinned)) + "|extra:" + ",".join(sorted(extras))
+        want = pinned if isinstance(pinned, str) else "pinned:" + ",".join(sorted(pinned)) + "|extra:" + ",".join(sorted(extras))
         if key is None or key[0] != want:
             due.setdefault("select", "destination list in the repo changed")
     row = conn.execute("SELECT value FROM meta WHERE key = 'always_include'").fetchone()
@@ -380,7 +434,7 @@ def due_steps(conn: sqlite3.Connection, now: datetime | None = None, extras: lis
 
 def refresh_auto(conn: sqlite3.Connection, s: Settings, force: tuple[str, ...] = ()) -> dict[str, str]:
     """Run whatever is due, in dependency order. One failing step does not stop the others."""
-    due = due_steps(conn, extras=always_include(s), pinned=pinned_list(s))
+    due = due_steps(conn, extras=always_include(s), pinned=list_key(s) if pinned_pairs(s) else ())
     for step in force:
         due.setdefault(step, "forced")
     steps = {

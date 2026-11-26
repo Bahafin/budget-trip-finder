@@ -208,5 +208,93 @@ export const PHOTOS = {
   "author": "Farragutful",
   "license": "CC BY-SA 4.0",
   "page": "https://commons.wikimedia.org/wiki/File:2022_Views_from_Diamond_Head_02.jpg"
+ },
+ "TCI": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/Los_Gigantes%2C_Tenerife%2C_Espa%C3%B1a%2C_2012-12-16%2C_DD_07.jpg/960px-Los_Gigantes%2C_Tenerife%2C_Espa%C3%B1a%2C_2012-12-16%2C_DD_07.jpg",
+  "author": "Diego Delso",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Los_Gigantes,_Tenerife,_Espa%C3%B1a,_2012-12-16,_DD_07.jpg",
+  "alt": "The Los Gigantes cliffs dropping into the Atlantic on Tenerife's west coast",
+  "tagline": "Volcanic cliffs and year-round sun"
+ },
+ "LIS": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/28/Lisbon_Skyline_%2845684560521%29.jpg/960px-Lisbon_Skyline_%2845684560521%29.jpg",
+  "alt": "Lisbon's hills and rooftops above the Tagus river",
+  "tagline": "Hills, trams and tiled facades",
+  "author": "Neil",
+  "license": "CC BY 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Lisbon_Skyline_(45684560521).jpg"
+ },
+ "CMN": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/da/Casablanca_%28203660919%29.jpeg/960px-Casablanca_%28203660919%29.jpeg",
+  "alt": "Sunset over the beach and skyline of Casablanca",
+  "tagline": "Atlantic city and gateway to Morocco",
+  "author": "Vincent If Huang",
+  "license": "CC BY 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Casablanca_(203660919).jpeg"
+ },
+ "BCN": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/Skyline_Barcelona%2C_December_2025.jpg/960px-Skyline_Barcelona%2C_December_2025.jpg",
+  "alt": "Barcelona's skyline stretching to the Mediterranean",
+  "tagline": "Gaudí, tapas and a city beach",
+  "author": "Hstoops",
+  "license": "CC0",
+  "page": "https://commons.wikimedia.org/wiki/File:Skyline_Barcelona,_December_2025.jpg"
+ },
+ "HKT": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/aa/Phuket_-_Kata_Beach_001.jpg/960px-Phuket_-_Kata_Beach_001.jpg",
+  "author": "ADwarf",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Phuket_-_Kata_Beach_001.jpg",
+  "alt": "Kata Beach on Phuket, a curve of sand below green hills",
+  "tagline": "Warm sea and island boat trips"
+ },
+ "DAD": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/14/Bright_Da_Nang_skyline_%28Unsplash%29.jpg/960px-Bright_Da_Nang_skyline_%28Unsplash%29.jpg",
+  "alt": "Da Nang's skyline along the Han river",
+  "tagline": "Long beaches and Hoi An nearby",
+  "author": "NGO TUNG thanhtungo",
+  "license": "CC0",
+  "page": "https://commons.wikimedia.org/wiki/File:Bright_Da_Nang_skyline_(Unsplash).jpg"
+ },
+ "AKL": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Auckland_Skyline_as_seen_from_Devonport_20100128_3.jpg/960px-Auckland_Skyline_as_seen_from_Devonport_20100128_3.jpg",
+  "alt": "Auckland's skyline and Sky Tower seen across the harbour from Devonport",
+  "tagline": "Harbour city with volcanoes and islands",
+  "author": "DXR",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Auckland_Skyline_as_seen_from_Devonport_20100128_3.jpg"
+ },
+ "PVR": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/March_2023_in_Puerto_Vallarta%2C_Jalisco_-_029.jpg/960px-March_2023_in_Puerto_Vallarta%2C_Jalisco_-_029.jpg",
+  "author": "Another Believer",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:March_2023_in_Puerto_Vallarta,_Jalisco_-_029.jpg",
+  "alt": "Sunset over Banderas Bay from the Puerto Vallarta Malecón, with a sailboat",
+  "tagline": "Pacific sunsets and a seaside promenade"
+ },
+ "SEL": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Skyline_view_from_Seoul_City_%28South_Korea%29.jpg/960px-Skyline_view_from_Seoul_City_%28South_Korea%29.jpg",
+  "alt": "Seoul's skyline with mountains behind",
+  "tagline": "Palaces, markets and late-night food",
+  "author": "Flickr - Laurie Nevay\n\nhttps://www.flickr.com/photos/laurienevay/",
+  "license": "CC BY-SA 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Skyline_view_from_Seoul_City_(South_Korea).jpg"
+ },
+ "YTO": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Sunset_Toronto_Skyline_Panorama_Crop_from_Snake_Island.jpg/960px-Sunset_Toronto_Skyline_Panorama_Crop_from_Snake_Island.jpg",
+  "alt": "Toronto's skyline and CN Tower at sunset, seen from the Toronto Islands",
+  "tagline": "Lakefront skyline and neighbourhoods",
+  "author": "Jchmrt",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Sunset_Toronto_Skyline_Panorama_Crop_from_Snake_Island.jpg"
+ },
+ "ATH": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Athens_Skyline.jpg/960px-Athens_Skyline.jpg",
+  "alt": "Athens spread out below, with the Acropolis hill",
+  "tagline": "Ancient sites and island ferries",
+  "author": "acediscovery",
+  "license": "CC BY 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Athens_Skyline.jpg"
  }
 };

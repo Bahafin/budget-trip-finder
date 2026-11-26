@@ -6,7 +6,9 @@ Things only you can do: accounts, terms, payments, legal and decisions. The buil
 
 - [ ] **Register the Far Enough name** (decided 2026-11-26). In one sitting, so nobody grabs them in between:
   - re-check availability
-  - register **farenough.ca** and **farenoughtrips.com** (farenough.com is taken)
+  - register **farenoughtrips.com** first: it's the **development domain** while we build with one departure city (decided 2026-11-26). The site stays hidden from search engines until the launch domain is final.
+  - also register **farenough.ca** now to hold it (about $15 a year). Likely the launch domain later (Canadian signal). It probably needs a CIRA-certified registrar; Cloudflare's registrar may not sell .ca (check). farenough.com is taken
+  - open a free **Cloudflare** account and point both domains' DNS (nameservers) to it. Free DNS, redirects, HTTPS and email forwarding
   - claim **@farenoughtrips** on Instagram, TikTok and YouTube (and X if free)
   - then tell me, and I'll put the name, tagline ("See how far your budget goes.") and domain on the site
   - optional: a trademark agent's clearance search before spending on the brand
@@ -33,7 +35,13 @@ Things only you can do: accounts, terms, payments, legal and decisions. The buil
 
 - [ ] **Employer outside-business-activity policy**: check disclosure rules. The Gate A report is your evidence that it works and costs almost nothing.
 - [ ] **TICO**: ask in writing whether a referral-only site (affiliate links, no bookings or payments) needs registration in Ontario (Gate B). **Decision 2026-11-26: left open; building continues as if the answer is fine.** Ask before public promotion or paid traffic.
-- [ ] **Email provider** for sign-ups and alerts (MailerLite, Buttondown or similar; CASL-compliant double opt-in). Needed before the landing page (content plan week 4).
+- [ ] **Email** (plan discussed 2026-11-26):
+  - **Mailbox:** hello@ on the domain, forwarded to your Gmail by Cloudflare Email Routing (free). To send as that address: the sign-up provider's mail service or a free Zoho mailbox; Google Workspace (about $8-10 a month) only if you want a separate inbox.
+  - **Sign-ups and alerts:** pick the provider. My suggestion: **MailerLite** (free tier, double opt-in, sign-up forms; check current limits). Personal "tell me when it fits" alerts come later: saved searches stored with us, sent through a transactional service (Brevo or Resend free tiers).
+  - **CASL:** every email needs a mailing address. A PO box works if you'd rather not use your home address.
+  - Needed before the landing page (content plan week 4).
+- [ ] **Hosting** (recommended 2026-11-26, your call): move the site to **Cloudflare Pages** (free, commercial use allowed, and Workers give us the small server code that sign-ups, alerts and chat search need), keeping GitHub for the code and the daily refresh. GitHub Pages works with a custom domain too, but its terms may discourage a business site (check the current terms). Needs: your Cloudflare account, then one Cloudflare API token as a GitHub secret.
+- [ ] **Launch with several departure cities, not just Toronto** (decided 2026-11-26). Toronto stays the development city; Montreal and Vancouver are the first test cities.
 
 ## Later, once the site has traffic
 
@@ -54,3 +62,4 @@ Things only you can do: accounts, terms, payments, legal and decisions. The buil
 - [x] Brand name chosen: **Far Enough**, tagline "See how far your budget goes." (2026-11-26; see docs/brand/)
 - [x] Gate C thresholds accepted (2026-11-26; see PLAN.md Stage 3)
 - [x] Site redesign approved and merged (2026-11-26)
+- [x] Destination list kept in the repo (data/seed/destinations.csv); AI-generated destination photos ruled out (real Wikimedia photos only); AI image skills kept for marketing graphics later (2026-11-26)

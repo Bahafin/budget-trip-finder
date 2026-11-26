@@ -21,7 +21,7 @@ def _fill(conn):
     conn.execute("INSERT INTO price_levels VALUES ('MX',0.6,'2025','f')")
     conn.execute("INSERT INTO airlines VALUES ('AC','Air Canada')")
     conn.execute("INSERT INTO destinations VALUES ('CUN','Cancun','MX',21.1,-86.8,10,1)")
-    conn.execute("INSERT INTO fares VALUES ('CUN','2027-01-10','2027-01-17',300,'CAD','AC',0,'','2026-11-20','f')")
+    conn.execute("INSERT INTO fares VALUES ('YTO','CUN','2027-01-10','2027-01-17',300,'CAD','AC',0,'','2026-11-20','f')")
     conn.execute("INSERT INTO lodging_bands VALUES ('CUN','2027-01','mid',100,150,200,'CAD',30,'liteapi','2026-11-20')")
     conn.execute("INSERT INTO price_index VALUES ('CUN','2027-01-10',200,'f')")
 
@@ -132,3 +132,58 @@ def test_changed_list_in_repo_makes_selection_due(tmp_path):
     assert due["select"] == "destination list in the repo changed" and "flights" in due
     conn.execute("INSERT OR REPLACE INTO meta VALUES ('lists', 'pinned:CUN,MEX|extra:')")
     assert due_steps(conn, NOW, pinned=["MEX", "CUN"]) == {}
+
+
+def test_old_database_gets_departure_city(tmp_path):
+    import sqlite3
+
+    from tripfinder.db import connect
+
+    path = tmp_path / "old.db"
+    old = sqlite3.connect(path)
+    old.executescript("""
+        CREATE TABLE destinations (code TEXT PRIMARY KEY, name TEXT NOT NULL, country_code TEXT NOT NULL, lat REAL, lon REAL,
+            fares_seen INTEGER NOT NULL DEFAULT 0, selected INTEGER NOT NULL DEFAULT 0);
+        CREATE TABLE fares (destination TEXT NOT NULL, depart TEXT NOT NULL, ret TEXT NOT NULL, price REAL NOT NULL,
+            currency TEXT NOT NULL, airline TEXT, transfers INTEGER, link TEXT, found_on TEXT NOT NULL, fetched_at TEXT NOT NULL,
+            PRIMARY KEY (destination, depart, ret, airline));
+        INSERT INTO destinations VALUES ('CUN','Cancun','MX',0,0,10,1);
+        INSERT INTO fares VALUES ('CUN','2027-01-10','2027-01-17',300,'CAD','AC',0,'','2026-11-20','f');
+    """)
+    old.commit()
+    old.close()
+    conn = connect(path)
+    assert [tuple(r) for r in conn.execute("SELECT origin, destination FROM fares")] == [("YTO", "CUN")]
+    assert [tuple(r) for r in conn.execute("SELECT origin, code FROM selection")] == [("YTO", "CUN")]
+
+
+def test_destination_lists_per_city(tmp_path):
+    from pathlib import Path
+
+    from tripfinder.config import Settings
+    from tripfinder.jobs import list_key, origins, pinned_list, pinned_pairs
+
+    (tmp_path / "destinations.csv").write_text("origin,code,name,country\nYTO,CUN,Cancun,MX\nYVR,TYO,Tokyo,JP\nYVR,CUN,Cancun,MX\n", encoding="utf8")
+    (tmp_path / "origins.csv").write_text("code,name,slug,note\nYTO,Toronto,toronto,\nYVR,Vancouver,vancouver,\n", encoding="utf8")
+    s = Settings("t", "m", "k", Path("x.db"), tmp_path)
+    assert pinned_pairs(s) == {"YTO": ["CUN"], "YVR": ["TYO", "CUN"]}
+    assert pinned_list(s) == ["CUN", "TYO"]
+    assert [o["slug"] for o in origins(s)] == ["toronto", "vancouver"]
+    assert list_key(s).startswith("pinned:YTO=CUN;YVR=CUN,TYO")
+
+
+def test_fare_history_keeps_cheapest_per_city_month_and_length(tmp_path):
+    from datetime import date
+
+    from tripfinder.jobs import save_fare_history
+
+    conn = _db(tmp_path)
+    conn.executemany("INSERT INTO fares VALUES (?,?,?,?,?,?,?,?,?,?,?)", [
+        ("YTO", "CUN", "2027-01-10", "2027-01-17", 300, "CAD", "AC", 0, "", "2026-11-20", "f"),
+        ("YTO", "CUN", "2027-01-12", "2027-01-19", 280, "CAD", "WS", 0, "", "2026-11-20", "f"),
+        ("YVR", "CUN", "2027-01-10", "2027-01-17", 400, "CAD", "AC", 0, "", "2026-11-20", "f"),
+        ("YTO", "CUN", "2026-11-01", "2026-11-08", 100, "CAD", "AC", 0, "", "2026-10-20", "f"),  # already departed
+    ])
+    assert save_fare_history(conn, date(2026, 11, 26)) == 2
+    rows = {(r["origin"], r["nights"]): (r["min_price"], r["fares"]) for r in conn.execute("SELECT * FROM fare_history")}
+    assert rows == {("YTO", 7): (280, 2), ("YVR", 7): (400, 1)}
