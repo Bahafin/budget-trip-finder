@@ -9,11 +9,6 @@ const DAY_MS = 86400000;
 const parseDate = (s) => new Date(s + "T00:00:00Z");
 const daysBetween = (a, b) => Math.round((parseDate(b) - parseDate(a)) / DAY_MS);
 const monthIndex = (m) => Number(m.slice(0, 4)) * 12 + Number(m.slice(5, 7));
-const median = (xs) => {
-  const s = [...xs].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
-};
 const range = (low, expected, high) => {
   const [l, e, h] = [low, expected, high].sort((a, b) => a - b);
   return { low: l, expected: e, high: h };
@@ -36,7 +31,8 @@ export function prepare(snapshot, today) {
   }));
 }
 
-function flightComponent(dest, req, nights, month, today, tol) {
+function flightComponent(dest, req, nights, month, today, C) {
+  const tol = C.nightsTolerance;
   const inMonth = dest.fares.filter((f) => f.month === month);
   if (!inMonth.length) return null;
   const matching = inMonth.filter((f) => Math.abs(f.nights - nights) <= tol);
@@ -46,10 +42,12 @@ function flightComponent(dest, req, nights, month, today, tol) {
   );
   const prices = pool.map((f) => f.price);
   const best = pool[0];
-  const expected = median(prices.slice(0, 3));
-  const high = Math.max(...prices.slice(0, 5)) * (exact ? 1.15 : 1.35);
-  const perPerson = range(best.price, expected, high);
-  const age = daysBetween(best.foundOn, today);
+  // Anchored on the fare for the trip's own dates; other dates only widen the top (see engine.py).
+  const [liftExpected, liftHigh] = C.flightLift[exact ? "exact" : "nearby"];
+  const expected = best.price * liftExpected;
+  const high = Math.max(best.price * liftHigh, ...prices.slice(0, 5));
+  const perPerson = range(best.price * C.flightLow, expected, high);
+  const age = Math.max(0, daysBetween(best.foundOn, today)); // data stamped in UTC can be "tomorrow" locally
   const detail =
     `${pool.length} cached fares, cheapest $${Math.round(best.price)} pp on ${best.depart}, ${best.nights} nights` +
     (exact ? "" : ` (no fare near ${nights} nights; used nearest dates)`);
@@ -73,7 +71,7 @@ function lodgingComponent(dest, req, nights, month, today, C) {
   const rooms = roomsNeeded(req.adults, req.children);
   const band = dest.bandMap.get(`${month}|${req.tier}`) || nearestBand(dest, month, req.tier);
   if (band) {
-    const age = daysBetween(band.asOf, today);
+    const age = Math.max(0, daysBetween(band.asOf, today));
     return {
       name: "lodging",
       ...scale({ low: band.low, expected: band.mid, high: band.high }, rooms * nights),
@@ -109,7 +107,7 @@ function dailyComponent(dest, req, nights, C) {
 
 export function pricePackage(dest, req, nights, month, today, C) {
   const tol = C.nightsTolerance;
-  const flight = flightComponent(dest, req, nights, month, today, tol);
+  const flight = flightComponent(dest, req, nights, month, today, C);
   if (!flight) return null;
   if (Math.abs(flight.fare.nights - nights) <= tol) nights = flight.fare.nights;
   const components = [flight.comp, lodgingComponent(dest, req, nights, month, today, C), dailyComponent(dest, req, nights, C)];

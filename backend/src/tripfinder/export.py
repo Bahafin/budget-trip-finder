@@ -15,6 +15,8 @@ from .config import Settings
 from .engine import (
     CHILD_DAILY_SHARE,
     DAILY_BASE_CAD,
+    FLIGHT_LIFT,
+    FLIGHT_LOW_FACTOR,
     NIGHTLY_BASE_CAD,
     NIGHTS_TOLERANCE,
 )
@@ -75,6 +77,8 @@ def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = N
             "nightlyBase": NIGHTLY_BASE_CAD,
             "childDailyShare": float(CHILD_DAILY_SHARE),
             "nightsTolerance": NIGHTS_TOLERANCE,
+            "flightLow": float(FLIGHT_LOW_FACTOR),
+            "flightLift": {"exact": [float(x) for x in FLIGHT_LIFT[True]], "nearby": [float(x) for x in FLIGHT_LIFT[False]]},
         },
         "destinations": out_dests,
         "advisories": advisories,

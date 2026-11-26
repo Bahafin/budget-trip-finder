@@ -71,8 +71,9 @@ def test_package_totals_add_up_and_scale_with_travellers():
     req = TripRequest(Money.of(5000), adults=2, nights=7, month="2027-01")
     p = price_package(d, req, 7, "2027-01", TODAY)
     flights, lodging, daily = p.components
-    assert flights.total.low == Money.of(600)  # cheapest fare x 2 people
-    assert flights.total.expected == Money.of(640)  # median of cheapest 3 x 2
+    assert flights.total.low == Money.of(570)  # cheapest fare x 0.95 x 2 people
+    assert flights.total.expected == Money.of(660)  # cheapest fare for these dates x 1.10 x 2
+    assert flights.total.high == Money.of(810)  # x 1.35 (other fares are cheaper than that)
     assert lodging.total.expected == Money.of(150 * 7)  # 1 room x 7 nights
     assert p.total.expected == flights.total.expected + lodging.total.expected + daily.total.expected
     assert flights.confidence == "cached (3d)"
@@ -152,3 +153,13 @@ def test_rank_orders_within_before_stretch_and_drops_over():
     ranked = rank(pkgs, req)
     assert next(p.destination.code for p in ranked) == "AAA"
     assert all(p.fit != "over" for p in ranked)
+
+
+def test_flight_estimate_ignores_pricier_other_dates_except_in_the_high_end():
+    cheap = fare(300, depart=date(2027, 1, 10))
+    pricey = [fare(900, depart=date(2027, 1, d)) for d in (12, 14)]
+    d = dest([cheap, *pricey])
+    req = TripRequest(Money.of(9999), adults=1, nights=7, month="2027-01")
+    flights = price_package(d, req, 7, "2027-01", TODAY).components[0]
+    assert flights.total.expected == Money.of(330)
+    assert flights.total.high == Money.of(900)

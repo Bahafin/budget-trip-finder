@@ -6,7 +6,6 @@ Nothing here does I/O. Inputs are plain dataclasses that the data layer fills fr
 from __future__ import annotations
 
 import math
-import statistics
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
@@ -25,6 +24,11 @@ NIGHTLY_BASE_CAD = {"budget": 130, "mid": 210, "upscale": 380}
 
 NIGHTS_SEARCH = range(14, 2, -1)  # when the user gives no length: try 14 nights down to 3
 NIGHTS_TOLERANCE = 2  # a cached fare counts as "this length" if within +/- 2 nights
+
+# Flight range around the cheapest cached fare for the trip's dates: low, and (expected, high) lifts.
+# Second key is False when no fare is near the requested length and nearby dates stand in.
+FLIGHT_LOW_FACTOR = Decimal("0.95")
+FLIGHT_LIFT = {True: (Decimal("1.10"), Decimal("1.35")), False: (Decimal("1.20"), Decimal("1.60"))}
 
 
 @dataclass(frozen=True)
@@ -135,12 +139,14 @@ def flight_component(fares: list[Fare], req: TripRequest, nights: int, month: st
     pool = sorted(matching or in_month, key=lambda f: (f.price.amount, f.depart, f.ret))  # deterministic ties
     prices = [f.price for f in pool]
     best = pool[0]
-    expected = Money(Decimal(str(statistics.median(p.amount for p in prices[:3]))), best.price.currency)
-    # Cached fares can be up to a week old and are the cheapest seen, so the top of the range is padded.
-    pad = Decimal("1.15") if exact else Decimal("1.35")
-    high = max(prices[:5], key=lambda m: m.amount) * pad
-    per_person = _ordered(best.price, expected, high)
-    age = (today - best.found_on).days
+    # The estimate is anchored on the fare for the trip's own dates (validation 2026-11-24: a median across
+    # other dates overshot by up to 38%). Cached fares are the cheapest seen and up to a week old, so the
+    # expected price sits a little above them; other dates in the month only widen the top of the range.
+    lift_expected, lift_high = FLIGHT_LIFT[exact]
+    expected = best.price * lift_expected
+    high = max([best.price * lift_high, *prices[:5]], key=lambda m: m.amount)
+    per_person = _ordered(best.price * FLIGHT_LOW_FACTOR, expected, high)
+    age = max(0, (today - best.found_on).days)  # data stamped in UTC can be "tomorrow" locally
     confidence = f"cached ({age}d)" if exact else "estimated"
     detail = (
         f"{len(pool)} cached fares, cheapest {best.price} pp on {best.depart:%b %d}, {best.nights} nights"
@@ -153,7 +159,7 @@ def lodging_component(dest: DestinationData, req: TripRequest, nights: int, mont
     rooms = rooms_needed(req.adults, req.children)
     band = dest.bands.get((month, req.tier)) or _nearest_band(dest, month, req.tier)
     if band is not None:
-        age = (today - band.as_of).days
+        age = max(0, (today - band.as_of).days)
         label = f"sampled ({age}d)" if band.source == "liteapi" else "estimated"
         detail = f"{rooms} room(s) x {nights} nights, {req.tier} tier, from {band.sample_size} hotel prices"
         return Component("lodging", band.nightly * (rooms * nights), label, detail)
