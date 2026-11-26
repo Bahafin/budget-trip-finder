@@ -468,14 +468,19 @@ const themed = () => (chosenThemes.size ? dests.filter((d) => (d.themes ?? []).s
     if (chip) { chosenThemes.add(t); chip.setAttribute("aria-pressed", "true"); }
   }
 })();
-const measure = document.createElement("canvas").getContext("2d");
+// A hidden copy of the amount in the field's own font (tabular digits included; a canvas measurement ignores
+// those and came out too narrow, so the "edit" tag overlapped long amounts).
+const measure = document.createElement("span");
+measure.setAttribute("aria-hidden", "true");
+measure.style.cssText = "position:absolute;visibility:hidden;white-space:pre;left:-9999px;top:0";
+budgetIn.after(measure);
 const budgetValue = () => Number(budgetIn.value.replace(/[^0-9]/g, "")) || null;
 function sizeBudget() {
   // Let the headline field grow and shrink with the number typed into it.
   const cs = getComputedStyle(budgetIn);
-  measure.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-  if ("letterSpacing" in measure) measure.letterSpacing = cs.letterSpacing;
-  budgetIn.style.width = `${Math.ceil(measure.measureText(budgetIn.value || "000").width) + 4}px`;
+  for (const k of ["fontFamily", "fontSize", "fontWeight", "letterSpacing", "fontVariantNumeric", "fontFeatureSettings"]) measure.style[k] = cs[k];
+  measure.textContent = budgetIn.value || "000";
+  budgetIn.style.width = `${Math.ceil(measure.getBoundingClientRect().width) + 6}px`;
 }
 
 // The cheapest trip a place offers with these settings: every month allowed and every cached trip length
