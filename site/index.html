@@ -8,31 +8,37 @@
 <meta name="color-scheme" content="light dark">
 <title>Budget Trip Finder</title>
 <link rel="preconnect" href="https://thumb.wikimedia.org">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Inter:wght@400..700&display=swap">
 <style>
-  /* ---- Brand tokens: swap these to rebrand. ---- */
+  /* ---- Brand tokens: swap these to rebrand (palette and type from docs/brand/name-and-brand.md, section 5). ---- */
   :root {
-    --brand-name: "Budget Trip Finder";
-    --brand: #0b6e63;        /* primary: buttons, links, "fits" */
-    --brand-strong: #08564d;
+    --lake: #0E5E6F; --sun: #F2A541; --sun-deep: #B45309; --paper: #FBF8F3; --mist: #E6F0F2; --night: #13293D;
+    --brand: var(--lake);    /* links, secondary buttons, range band */
+    --brand-strong: #0a4855;
     --on-brand: #ffffff;
-    --sun: #f4a03a;          /* warm accent */
-    --font-display: ui-rounded, "SF Pro Rounded", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
-    --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --cta: var(--sun); --cta-hover: #e8952a; --on-cta: var(--night);   /* the one call to action: always ink text on sun */
+    --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+    --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 
-    --bg: #f6f4ef; --surface: #ffffff; --surface-2: #f1eee7; --ink: #1b1d1c; --muted: #5d625f; --line: #e2ddd3;
+    --bg: var(--paper); --surface: #ffffff; --surface-2: var(--mist); --ink: var(--night); --muted: #4b5d6c; --line: #dfe5e8;
+    --tick: var(--night);
     --flights: #2f66b3; --lodging: #b8681c; --daily: #5f7a22;
-    --fit-bg: #dff3ec; --fit-ink: #075347; --stretch-bg: #fdecd2; --stretch-ink: #7a4300;
-    --warn-bg: #fff4dc; --warn-ink: #6b4700; --info-bg: #eaf1fb; --info-ink: #1f4677;
-    --shadow: 0 1px 2px rgb(20 30 25 / 6%), 0 8px 24px rgb(20 30 25 / 8%);
+    --fit-bg: var(--sun); --fit-ink: var(--night); --stretch-bg: #fbe3c6; --stretch-ink: #8a3f06;
+    --under-ink: var(--lake); --over-ink: var(--sun-deep);
+    --warn-bg: #fff4dc; --warn-ink: #6b4700; --info-bg: #e8f1f8; --info-ink: #1d4466;
+    --shadow: 0 1px 2px rgb(19 41 61 / 6%), 0 8px 24px rgb(19 41 61 / 9%);
     --radius: 18px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --brand: #4cc4b0; --brand-strong: #7bd9c9; --on-brand: #06231f; --sun: #f6b25e;
-      --bg: #121514; --surface: #1b1f1e; --surface-2: #232827; --ink: #ecefed; --muted: #a3aaa7; --line: #303735;
-      --flights: #7fa8e8; --lodging: #e5a465; --daily: #a8c464;
-      --fit-bg: #133a33; --fit-ink: #9fe6d6; --stretch-bg: #3b2a12; --stretch-ink: #f6c98a;
-      --warn-bg: #362b13; --warn-ink: #f2d38c; --info-bg: #172638; --info-ink: #b5cdf0;
+      --brand: #6cc3d3; --brand-strong: #9ad8e3; --on-brand: var(--night); --cta-hover: #f6b964;
+      --bg: var(--night); --surface: #1a3349; --surface-2: #233f58; --ink: #f1efe9; --muted: #b3c2cf; --line: #2e4b65;
+      --tick: #f1efe9;
+      --flights: #86aef0; --lodging: #eaa765; --daily: #a8c464;
+      --stretch-bg: #4a3214; --stretch-ink: #f8cf98; --under-ink: #8fd6e2; --over-ink: #f6b56a;
+      --warn-bg: #3a2f17; --warn-ink: #f2d38c; --info-bg: #1d3a55; --info-ink: #bcd6ee;
       --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 30%);
     }
   }
@@ -41,7 +47,7 @@
   html { -webkit-text-size-adjust: 100%; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--font-body); }
   a { color: var(--brand); }
-  :focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; border-radius: 6px; }
+  :focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; box-shadow: 0 0 0 2px var(--night); border-radius: 6px; }
   .wrap { max-width: 1140px; margin: 0 auto; padding: 0 16px; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -59,7 +65,7 @@
   .hero-copy { padding: 48px 0 124px; max-width: 720px; }
   .eyebrow { font-weight: 600; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; opacity: .92; margin: 0 0 10px; }
   h1 { font: 800 clamp(34px, 7vw, 60px)/1.05 var(--font-display); letter-spacing: -0.02em; margin: 0 0 14px; text-shadow: 0 2px 18px rgb(0 0 0 / 30%); }
-  h1 .amt { color: #ffd38f; white-space: nowrap; }
+  h1 .amt { color: var(--sun); white-space: nowrap; }
   .hero-sub { font-size: clamp(16px, 2.4vw, 19px); margin: 0; max-width: 560px; text-shadow: 0 1px 10px rgb(0 0 0 / 35%); }
   .hero-credit { position: absolute; right: 16px; left: 16px; bottom: 92px; margin: 0; text-align: right; font-size: 11px; color: rgb(255 255 255 / 85%); }
   .hero-credit a { color: inherit; }
@@ -78,9 +84,9 @@
                   border-radius: 12px; padding: 11px 12px; min-width: 0; width: 100%; }
   .money input { font: 700 24px var(--font-display); padding: 10px 12px 10px 34px; }
   input:focus, select:focus { border-color: var(--brand); }
-  .go { grid-column: 1 / -1; font: 700 17px var(--font-display); background: var(--brand); color: var(--on-brand); border: 0;
+  .go { grid-column: 1 / -1; font: 700 17px var(--font-display); background: var(--cta); color: var(--on-cta); border: 0;
         border-radius: 12px; padding: 14px 18px; cursor: pointer; }
-  .go:hover { background: var(--brand-strong); }
+  .go:hover { background: var(--cta-hover); }
   @media (min-width: 760px) {
     form { grid-template-columns: 1.6fr repeat(5, minmax(0, 1fr)) auto; align-items: end; padding: 18px; }
     form > .field, form > .field.wide, .field.budget { grid-column: auto; }
@@ -120,14 +126,13 @@
   .price .pp { text-align: right; font-size: 14px; }
   .price .pp b { font-size: 18px; font-variant-numeric: tabular-nums; }
   .left { font-size: 14px; margin-top: -6px; }
-  .left.within { color: var(--fit-ink); } .left.stretch { color: var(--stretch-ink); }
-  @media (prefers-color-scheme: dark) { .left.within { color: var(--brand); } }
+  .left.within { color: var(--under-ink); } .left.stretch { color: var(--over-ink); }
 
   .meter { position: relative; height: 34px; margin: 2px 0 0; }
   .meter .track { position: absolute; left: 0; right: 0; top: 10px; height: 8px; border-radius: 4px; background: var(--surface-2); }
-  .meter .band { position: absolute; top: 10px; height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--brand) 45%, transparent); }
-  .meter .exp { position: absolute; top: 5px; width: 4px; height: 18px; margin-left: -2px; border-radius: 2px; background: var(--brand); }
-  .meter .budget { position: absolute; top: 2px; height: 24px; border-left: 2px dashed var(--ink); }
+  .meter .band { position: absolute; top: 10px; height: 8px; border-radius: 4px; background: var(--brand); opacity: .75; }
+  .meter .exp { position: absolute; top: 5px; width: 4px; height: 18px; margin-left: -2px; border-radius: 2px; background: var(--tick); }
+  .meter .budget { position: absolute; top: 2px; height: 24px; border-left: 2px dashed var(--over-ink); }
   .meter .budget span { position: absolute; top: 22px; transform: translateX(-50%); font-size: 11px; color: var(--muted); white-space: nowrap; }
 
   .incl h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 6px; }
@@ -154,8 +159,8 @@
   .ctas { margin-top: auto; display: grid; gap: 8px; grid-template-columns: 1fr 1fr; }
   .btn { display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center; text-decoration: none;
          font: 700 15px/1.2 var(--font-display); border-radius: 12px; padding: 12px 10px; min-height: 48px; }
-  .btn.primary { background: var(--brand); color: var(--on-brand); }
-  .btn.primary:hover { background: var(--brand-strong); }
+  .btn.primary { background: var(--cta); color: var(--on-cta); }
+  .btn.primary:hover { background: var(--cta-hover); }
   .btn.secondary { border: 2px solid var(--brand); color: var(--brand); }
   .btn.secondary:hover { background: var(--surface-2); }
   .fine { font-size: 12px; color: var(--muted); margin: -4px 0 0; }
@@ -168,7 +173,7 @@
   .how div { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
   .how h3 { margin: 0 0 4px; font: 700 18px var(--font-display); }
   .how p { margin: 0; color: var(--muted); font-size: 14px; }
-  .how .n { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--fit-bg); color: var(--fit-ink); font-weight: 800; margin-bottom: 8px; }
+  .how .n { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--sun); color: var(--night); font-weight: 800; margin-bottom: 8px; }
   footer { color: var(--muted); font-size: 13px; padding: 32px 0 48px; }
   footer p { margin: 0 0 8px; max-width: 760px; }
   footer strong { color: var(--ink); }
@@ -185,7 +190,7 @@
   <div class="wrap">
     <div class="topbar">
       <a class="logo" href="./" aria-label="Budget Trip Finder home">
-        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="#f4a03a"/><path d="M6 17c3-1 5-4 8-4s5 3 8 4" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/><circle cx="14" cy="9" r="2.6" fill="#fff"/></svg>
+        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="#F2A541"/><path d="M6 17c3-1 5-4 8-4s5 3 8 4" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/><circle cx="14" cy="9" r="2.6" fill="#fff"/></svg>
         <span class="brand-name">Budget Trip Finder</span>
       </a>
     </div>
@@ -195,7 +200,7 @@
       <p class="hero-sub">Give us one number for the whole trip. We price flights, a hotel and daily spending for every destination, then show you what fits.</p>
     </div>
   </div>
-  <p class="hero-credit">Photo: Bávaro beach, Punta Cana, by Oleg Yunakov, <a href="https://commons.wikimedia.org/wiki/File:2023_-_Playa_Bavaro_Punta_Cana_-_08.jpg" target="_blank" rel="noopener">CC BY-SA 4.0</a></p>
+  <p class="hero-credit" title="Bávaro beach, Punta Cana">Photo: Oleg Yunakov, <a href="https://commons.wikimedia.org/wiki/File:2023_-_Playa_Bavaro_Punta_Cana_-_08.jpg" target="_blank" rel="noopener">CC BY-SA 4.0</a></p>
 </header>
 
 <main class="wrap">
@@ -234,7 +239,7 @@
 </main>
 
 <script type="module">
-import { prepare, roomsNeeded, search } from "./engine.js";
+import { hotelLinkFor, prepare, roomsNeeded, search } from "./engine.js";
 import { PHOTOS } from "./photos.js";
 
 const f = document.getElementById("f");
@@ -268,14 +273,6 @@ const icon = (path) => {
 const ICON_WARN = "M12 3 2 21h20L12 3zm0 7v5m0 3v.01";
 const ICON_INFO = "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zm0-11v6m0-9v.01";
 
-function hotelLink(p, req) {
-  const q = new URLSearchParams({
-    ss: p.dest.name, checkin: p.fare.depart, checkout: p.fare.ret,
-    group_adults: req.adults, group_children: req.children, no_rooms: roomsNeeded(req.adults, req.children),
-  });
-  return "https://www.booking.com/searchresults.html?" + q;
-}
-
 // Turn the engine's confidence label into plain words; the raw label stays in the tooltip.
 function confText(c) {
   let m;
@@ -286,8 +283,10 @@ function confText(c) {
   return c;
 }
 
+const stops = (n) => (n == null ? null : n === 0 ? "direct" : `${n} stop${n > 1 ? "s" : ""}`);
+
 const LABELS = {
-  flights: (p, req, t) => ["Flights", `round trip for ${t}`],
+  flights: (p, req, t) => ["Flights", [`round trip for ${t}`, p.fare.airline, stops(p.fare.transfers)].filter(Boolean).join(" · ")],
   lodging: (p, req) => ["Hotel", `${p.nights} nights, ${roomsNeeded(req.adults, req.children)} room${roomsNeeded(req.adults, req.children) > 1 ? "s" : ""}`],
   daily: (p) => ["Daily spending", `food, local transport, extras for ${p.nights + 1} days`],
 };
@@ -383,9 +382,10 @@ function card(p, req, data) {
 
   // Outbound partner links (we refer, we don't sell)
   const ctas = el("div", { class: "ctas" });
+  const hotel = hotelLinkFor(p.dest, p.fare, req);
   if (p.fare.link) ctas.append(el("a", { class: "btn primary", href: p.fare.link, target: "_blank", rel: "noopener sponsored" }, "See flights on Aviasales ↗"));
-  ctas.append(el("a", { class: `btn ${p.fare.link ? "secondary" : "primary"}`, href: hotelLink(p, req), target: "_blank", rel: "noopener" }, "See hotels on Booking.com ↗"));
-  if (!p.fare.link) ctas.style.gridTemplateColumns = "1fr";
+  if (hotel) ctas.append(el("a", { class: `btn ${p.fare.link ? "secondary" : "primary"}`, href: hotel.url, target: "_blank", rel: "noopener sponsored" }, `See hotels on ${hotel.partner} ↗`));
+  if (ctas.childElementCount < 2) ctas.style.gridTemplateColumns = "1fr";
   b.append(ctas, el("p", { class: "fine" }, "Prices are estimates. Opens the partner site, where you check live prices and book. May be an affiliate link."));
 
   c.append(b);
