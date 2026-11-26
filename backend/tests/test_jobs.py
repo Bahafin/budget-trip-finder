@@ -121,3 +121,14 @@ def test_selection_is_sticky():
     assert choose_destinations(low, set(low), ["D", "A", "B"], [], 3, stored={"D": 7, "A": 50, "B": 40}) == ["D", "A", "B"]
     # A place now under an advisory (not eligible) is dropped; hand-picked places are added on top.
     assert choose_destinations(counts, eligible - {"A"}, ["A", "B", "C"], ["X"], 3) == ["B", "C", "D", "X"]
+
+
+def test_changed_list_in_repo_makes_selection_due(tmp_path):
+    conn = _db(tmp_path)
+    _fill(conn)
+    for job in ALL:
+        _log(conn, job, NOW - timedelta(hours=2))
+    due = due_steps(conn, NOW, pinned=["CUN", "MEX"])
+    assert due["select"] == "destination list in the repo changed" and "flights" in due
+    conn.execute("INSERT OR REPLACE INTO meta VALUES ('lists', 'pinned:CUN,MEX|extra:')")
+    assert due_steps(conn, NOW, pinned=["MEX", "CUN"]) == {}
