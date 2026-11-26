@@ -6,6 +6,7 @@ import re
 import shutil
 from datetime import date, timedelta
 from pathlib import Path
+from urllib.parse import parse_qsl
 
 import pytest
 
@@ -225,6 +226,32 @@ def test_gate_a_summary_matches_the_report():
     report = gate_a.report(pages.CHECKS_PATH)
     assert f"Checked {checks['n']} of" in report
     assert f"median absolute total error {checks['total']['median_abs']:.0%}" in report
+
+
+FINDER_PARAMS = {"budget", "adults", "children", "month", "nights", "tier", "sort"}  # what site/index.html prefill() reads
+
+
+def test_budget_for_rounds_up():
+    snap = pages.Snapshot(TODAY, "", {}, [], {}, {}, {})
+    d = _dest(6)
+    p = pages.Pricer(snap).price(d, pages.Pricer(snap).req(99_999, "mid", "2027-01", 7), 7, "2027-01")
+    assert pages.budget_for(p) >= p.total.expected.amount
+    assert pages.budget_for(p) - p.total.expected.amount < 500
+
+
+def test_finder_links_carry_the_page_trip(built):
+    site, _, files = built
+    hub = (site / "from-toronto/cancun/index.html").read_text(encoding="utf8")
+    m = re.search(r'class="btn primary wide" href="\.\./\.\./\?([^"]+)"', hub)
+    assert m, "hub has no pre-filled finder link"
+    q = dict(parse_qsl(html.unescape(m.group(1))))
+    assert q["adults"] == "2" and q["tier"] in {"budget", "mid"} and re.fullmatch(r"\d{4}-\d{2}", q["month"])
+    assert int(q["budget"]) % 500 == 0
+    for f, text in files.items():
+        for href in re.findall(r'class="btn primary wide" href="([^"]+)"', text):
+            if "?" in href:
+                keys = set(dict(parse_qsl(html.unescape(href.split("?", 1)[1]))))
+                assert keys <= FINDER_PARAMS, f"{f}: {keys - FINDER_PARAMS}"
 
 
 def test_brand_is_one_constant(built):

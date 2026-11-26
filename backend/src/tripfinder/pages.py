@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import html
 import json
+import math
 import os
 import shutil
 import statistics
@@ -25,6 +26,7 @@ from decimal import Decimal
 from pathlib import Path
 from string import Template
 from typing import Any
+from urllib.parse import urlencode
 
 from .config import ROOT
 from .engine import (
@@ -231,6 +233,11 @@ def pct(x: float) -> str:
 def pct_signed(x: float) -> str:
     v = round(x * 100)
     return f"{'+' if v > 0 else '−' if v < 0 else ''}{abs(v)}%"
+
+
+def budget_for(p: Package) -> int:
+    """A round budget the trip fits: its expected total rounded up to the next $500."""
+    return math.ceil(p.total.expected.amount / 500) * 500
 
 
 def budget_amt(n: float) -> str:
@@ -448,8 +455,13 @@ def partner_ctas(snap: Snapshot, d: DestinationData, fare: Fare, adults: int = A
     return '<div class="ctas">' + "".join(out) + "</div>" + (PARTNER_NOTE if note else "")
 
 
-def finder_link(page_path: str, label: str = "Try your own budget, dates and group size") -> str:
-    return f'<p><a class="btn primary wide" href="{esc(rel(page_path, ""))}">{esc(label)}</a></p>'
+def finder_link(page_path: str, params: dict[str, Any] | None = None) -> str:
+    """Button into the trip finder, pre-filled with this page's trip (index.html reads these query parameters)."""
+    href = rel(page_path, "")
+    if params:
+        href += "?" + urlencode({k: v for k, v in params.items() if v is not None})
+    label = "Change the budget, dates or group size" if params else "Try your own budget, dates and group size"
+    return f'<p><a class="btn primary wide" href="{esc(href)}">{esc(label)}</a></p>'
 
 
 def signup_box(topic: str) -> str:
@@ -584,7 +596,7 @@ class Builder:
             INCLUDED,
             self.how_sure(path, d),
             advisory_block(self.snap, d),
-            finder_link(path),
+            finder_link(path, self.finder_params(lead, head_month, 'mid' if mid else 'budget')),
             signup_box(esc(f"{nm} from {ORIGIN_NAME}")),
             self.related(d, path, head_month),
         ]
@@ -681,7 +693,7 @@ class Builder:
             INCLUDED,
             self.how_sure(path, d),
             advisory_block(self.snap, d),
-            finder_link(path),
+            finder_link(path, self.finder_params(lead, month, 'mid' if 'mid' in pk else 'budget')),
             signup_box(esc(f"{nm} from {ORIGIN_NAME}")),
         ]
         self.pages.append(Page(
@@ -786,7 +798,7 @@ class Builder:
             "<li><b>Flights:</b> cheapest cached return fare for those dates, plus a margin.</li>"
             "<li><b>Hotels:</b> a sample of real hotel prices for the month, by comfort level.</li>"
             "<li><b>Day-to-day:</b> our estimate from each country's price level compared with Canada.</li></ul></section>"),
-            INCLUDED, self.how_sure(path), finder_link(path), signup_box(f"trips under {budget_amt(budget)} from {esc(ORIGIN_NAME)}"),
+            INCLUDED, self.how_sure(path), finder_link(path, {"budget": budget, "adults": ADULTS, "month": month, "tier": "mid"}), signup_box(f"trips under {budget_amt(budget)} from {esc(ORIGIN_NAME)}"),
         ]
         count = len(fits_mid) + len([p for p in fits_bud if p.destination.code not in {q.destination.code for q in fits_mid}])
         gate = count >= GATE_BUDGET_RESULTS
@@ -828,7 +840,7 @@ class Builder:
                 f"<h2>By budget</h2><ul>{budgets}</ul>"
                 f"<h2>About a week in {esc(month_label(month))}, cheapest first</h2>"
                 '<div class="scroll"><table><thead><tr><th>Destination</th><th>Nights</th><th>Total, budget hotel</th><th>Total, mid-range hotel</th></tr></thead>'
-                f"<tbody>{table}</tbody></table></div>{INCLUDED}{self.how_sure(path)}{finder_link(path)}")
+                f"<tbody>{table}</tbody></table></div>{INCLUDED}{self.how_sure(path)}{finder_link(path, {'adults': ADULTS, 'month': month})}")
         gate = len(rows) >= GATE_BUDGET_RESULTS
         self.pages.append(Page(
             path=path, title=f"Trips from {ORIGIN_NAME} in {month_label(month)}: what a week costs for two",
@@ -872,7 +884,7 @@ class Builder:
         body += [(f"<p class=\"fine\">Family of four: two adults and two children sharing one room; children's day-to-day costs counted at 70% of an adult's. "
                  f"Departures {esc(day(date.fromisoformat(w['departFrom'])))}–{esc(day(date.fromisoformat(w['departTo'])))}, "
                  f"returns {esc(day(date.fromisoformat(w['retFrom'])))}–{esc(day(date.fromisoformat(w['retTo'])))}.</p>"),
-                 INCLUDED, self.how_sure(path), finder_link(path), signup_box(esc(f"March break {year} from {ORIGIN_NAME}"))]
+                 INCLUDED, self.how_sure(path), finder_link(path, {"budget": MARCH_BREAK_BUDGETS[-1], "adults": adults, "children": children, "month": month, "nights": 7}), signup_box(esc(f"March break {year} from {ORIGIN_NAME}"))]
         gate = len(dests) >= GATE_BUDGET_RESULTS and sections > 0
         self.pages.append(Page(
             path=path, title=f"March break {year} from {ORIGIN_NAME}: trips for a family of four",
@@ -925,6 +937,9 @@ class Builder:
         ))
 
     # Accuracy, questions and the method page
+
+    def finder_params(self, p: Package, month: str, tier: str) -> dict[str, Any]:
+        return {"budget": budget_for(p), "adults": ADULTS, "month": month, "nights": p.nights, "tier": tier}
 
     def trips_checked(self, code: str) -> list[dict[str, Any]]:
         return [t for t in (self.checks or {}).get("trips", []) if t["code"] == code]
