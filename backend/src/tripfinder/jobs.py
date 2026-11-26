@@ -158,16 +158,39 @@ def refresh_hotels(conn: sqlite3.Connection, s: Settings, workers: int = 2, only
     return {"searches": len(tasks), "errors": errors, "hotel_prices": stored, "bands": bands}
 
 
-def rebuild_bands(conn: sqlite3.Connection, min_sample: int = 5) -> int:
-    """Nightly price per room by destination, month and tier: 25th percentile / median / 75th percentile."""
+SPIKE = 2.5  # a hotel priced over 2.5x its own median across sample dates is treated as a bad quote
+ALL_INCLUSIVE = ("all inclusive", "all-inclusive", "allinclusive")
+
+
+def is_all_inclusive(name: str | None) -> bool:
+    n = (name or "").lower()
+    return any(k in n for k in ALL_INCLUSIVE)
+
+
+def rebuild_bands(conn: sqlite3.Connection, min_sample: int = 5, drop_all_inclusive: bool = True) -> int:
+    """Nightly price per room by destination, month and tier: 25th percentile / median / 75th percentile.
+
+    Two filters keep a small sample honest:
+    - a hotel's price for one date more than SPIKE times its own median over all sampled dates is dropped
+      (the sandbox sometimes quotes a hotel at 3-4x its usual rate);
+    - all-inclusive resorts are left out, because their price includes meals and we count food in daily spending.
+    """
+    rows = conn.execute("SELECT destination, checkin, nights, hotel_id, hotel_name, stars, total, currency, fetched_at FROM hotel_prices").fetchall()
+    per_hotel: dict[tuple[str, str], list[float]] = {}
+    for r in rows:
+        per_hotel.setdefault((r["destination"], r["hotel_id"]), []).append(r["total"] / r["nights"])
+    hotel_median = {k: statistics.median(v) for k, v in per_hotel.items()}
     groups: dict[tuple[str, str, str, str], list[float]] = {}
     as_of: dict[tuple[str, str], str] = {}
-    for r in conn.execute("SELECT destination, checkin, nights, stars, total, currency, fetched_at FROM hotel_prices"):
+    for r in rows:
         tier = tier_for(r["stars"])
-        if tier is None:
+        if tier is None or (drop_all_inclusive and is_all_inclusive(r["hotel_name"])):
+            continue
+        nightly = r["total"] / r["nights"]
+        if nightly > SPIKE * hotel_median[(r["destination"], r["hotel_id"])]:
             continue
         month = r["checkin"][:7]
-        groups.setdefault((r["destination"], month, tier, r["currency"]), []).append(r["total"] / r["nights"])
+        groups.setdefault((r["destination"], month, tier, r["currency"]), []).append(nightly)
         as_of[(r["destination"], month)] = max(as_of.get((r["destination"], month), ""), r["fetched_at"][:10])
     conn.execute("DELETE FROM lodging_bands WHERE source = 'liteapi'")
     n = 0

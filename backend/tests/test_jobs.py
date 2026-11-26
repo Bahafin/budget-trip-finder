@@ -60,3 +60,32 @@ def test_new_destination_list_refreshes_everything_that_depends_on_it(tmp_path):
         _log(conn, job, NOW - timedelta(hours=2))
     _log(conn, "select", NOW - timedelta(days=40))
     assert set(due_steps(conn, NOW)) == {"select", "flights", "hotels", "seasonality"}
+
+
+def _hotels(conn, rows):
+    conn.executemany(
+        "INSERT INTO hotel_prices VALUES (?,?,?,?,?,?,?,?,?)",
+        [("ORL", checkin, 3, hid, name, stars, nightly * 3, "CAD", "2026-11-26T00:00:00") for checkin, hid, name, stars, nightly in rows],
+    )
+
+
+def test_bands_drop_spiky_quotes_and_all_inclusive(tmp_path):
+    from tripfinder.jobs import rebuild_bands
+
+    conn = connect(tmp_path / "t.db")
+    rows = []
+    for i in range(6):  # six normal 4-star hotels, same price every month
+        for month in ("2026-12-15", "2027-01-15", "2027-02-15"):
+            rows.append((month, f"h{i}", f"Hotel {i}", 4.0, 200 + 10 * i))
+    rows = [r for r in rows if not (r[0] == "2027-02-15" and r[1] == "h0")]
+    rows.append(("2027-02-15", "h0", "Hotel 0", 4.0, 2000))  # 10x its own usual price: a bad quote
+    for month in ("2026-12-15", "2027-01-15", "2027-02-15"):
+        rows.append((month, "ai", "Beach Resort - All Inclusive", 4.0, 900))
+    _hotels(conn, rows)
+    rebuild_bands(conn)
+    feb = conn.execute("SELECT nightly_high, sample_size FROM lodging_bands WHERE month='2027-02' AND tier='mid'").fetchone()
+    assert feb["sample_size"] == 5 and feb["nightly_high"] < 300
+    dec = conn.execute("SELECT sample_size FROM lodging_bands WHERE month='2026-12' AND tier='mid'").fetchone()
+    assert dec["sample_size"] == 6
+    rebuild_bands(conn, drop_all_inclusive=False)
+    assert conn.execute("SELECT sample_size FROM lodging_bands WHERE month='2026-12' AND tier='mid'").fetchone()["sample_size"] == 7

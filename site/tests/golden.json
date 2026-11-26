@@ -1,5 +1,5 @@
 {
- "today": "2026-11-25",
+ "today": "2026-11-26",
  "cases": [
   {
    "request": {
@@ -17,13 +17,13 @@
      "high": 3344.0
     },
     {
-     "code": "CUN",
+     "code": "PUJ",
      "nights": 5,
      "month": "2027-01",
      "fit": "within",
-     "low": 1883.0,
-     "expected": 2651.0,
-     "high": 3845.0
+     "low": 2126.0,
+     "expected": 2665.0,
+     "high": 3808.0
     },
     {
      "code": "YMQ",
@@ -35,15 +35,6 @@
      "high": 4038.0
     },
     {
-     "code": "PUJ",
-     "nights": 3,
-     "month": "2026-12",
-     "fit": "within",
-     "low": 2116.0,
-     "expected": 2743.0,
-     "high": 3955.0
-    },
-    {
      "code": "KIN",
      "nights": 4,
      "month": "2026-12",
@@ -51,6 +42,15 @@
      "low": 2297.0,
      "expected": 2850.0,
      "high": 3731.0
+    },
+    {
+     "code": "CUN",
+     "nights": 6,
+     "month": "2027-02",
+     "fit": "within",
+     "low": 2233.0,
+     "expected": 2944.0,
+     "high": 3982.0
     },
     {
      "code": "IST",
@@ -66,9 +66,9 @@
      "nights": 4,
      "month": "2026-12",
      "fit": "stretch",
-     "low": 2699.0,
-     "expected": 3431.0,
-     "high": 4464.0
+     "low": 2698.0,
+     "expected": 3428.0,
+     "high": 4433.0
     },
     {
      "code": "DFW",
@@ -103,8 +103,8 @@
      "month": "2026-12",
      "fit": "stretch",
      "low": 2956.0,
-     "expected": 3685.0,
-     "high": 4704.0
+     "expected": 3683.0,
+     "high": 4698.0
     }
    ]
   },
@@ -121,9 +121,18 @@
      "nights": 5,
      "month": "2027-01",
      "fit": "within",
-     "low": 1883.0,
-     "expected": 2651.0,
-     "high": 3845.0
+     "low": 1868.0,
+     "expected": 2381.0,
+     "high": 3243.0
+    },
+    {
+     "code": "PUJ",
+     "nights": 5,
+     "month": "2027-01",
+     "fit": "within",
+     "low": 2126.0,
+     "expected": 2665.0,
+     "high": 3808.0
     },
     {
      "code": "YYC",
@@ -160,15 +169,6 @@
      "low": 2950.0,
      "expected": 3758.0,
      "high": 4808.0
-    },
-    {
-     "code": "PUJ",
-     "nights": 5,
-     "month": "2027-01",
-     "fit": "stretch",
-     "low": 2605.0,
-     "expected": 3983.0,
-     "high": 4732.0
     }
    ]
   },
@@ -195,9 +195,9 @@
      "nights": 5,
      "month": "2027-01",
      "fit": "within",
-     "low": 2344.0,
-     "expected": 2902.0,
-     "high": 3681.0
+     "low": 2338.0,
+     "expected": 2883.0,
+     "high": 3643.0
     },
     {
      "code": "YYC",
@@ -392,20 +392,20 @@
     {
      "code": "PUJ",
      "nights": 8,
-     "month": "2027-01",
+     "month": "2026-12",
      "fit": "within",
-     "low": 1060.0,
-     "expected": 1379.0,
-     "high": 2260.0
+     "low": 1021.0,
+     "expected": 1377.0,
+     "high": 2034.0
     },
     {
      "code": "CUN",
      "nights": 7,
      "month": "2027-01",
      "fit": "within",
-     "low": 1097.0,
-     "expected": 1391.0,
-     "high": 1794.0
+     "low": 1088.0,
+     "expected": 1365.0,
+     "high": 1742.0
     },
     {
      "code": "YYC",
@@ -517,13 +517,13 @@
    },
    "results": [
     {
-     "code": "CUN",
+     "code": "PUJ",
      "nights": 3,
      "month": "2026-12",
      "fit": "within",
-     "low": 5354.0,
-     "expected": 6655.0,
-     "high": 8715.0
+     "low": 4350.0,
+     "expected": 6248.0,
+     "high": 11650.0
     },
     {
      "code": "KIN",
@@ -544,6 +544,15 @@
      "high": 10575.0
     },
     {
+     "code": "CUN",
+     "nights": 4,
+     "month": "2027-02",
+     "fit": "within",
+     "low": 4838.0,
+     "expected": 8304.0,
+     "high": 12277.0
+    },
+    {
      "code": "YMQ",
      "nights": 4,
      "month": "2026-12",
@@ -562,15 +571,6 @@
      "high": 11849.0
     },
     {
-     "code": "PUJ",
-     "nights": 5,
-     "month": "2027-01",
-     "fit": "within",
-     "low": 7206.0,
-     "expected": 8898.0,
-     "high": 12491.0
-    },
-    {
      "code": "BKK",
      "nights": 4,
      "month": "2027-02",
@@ -584,18 +584,18 @@
      "nights": 5,
      "month": "2026-12",
      "fit": "stretch",
-     "low": 7877.0,
-     "expected": 9804.0,
-     "high": 12718.0
+     "low": 7804.0,
+     "expected": 9749.0,
+     "high": 12355.0
     },
     {
      "code": "DXB",
      "nights": 3,
      "month": "2027-01",
      "fit": "stretch",
-     "low": 8533.0,
-     "expected": 10560.0,
-     "high": 13817.0
+     "low": 8525.0,
+     "expected": 10522.0,
+     "high": 13653.0
     },
     {
      "code": "DFW",
@@ -665,9 +665,9 @@
      "nights": 3,
      "month": "2026-12",
      "fit": "within",
-     "low": 1580.0,
-     "expected": 1986.0,
-     "high": 2693.0
+     "low": 1533.0,
+     "expected": 1930.0,
+     "high": 2522.0
     },
     {
      "code": "YYC",
@@ -677,6 +677,15 @@
      "low": 1843.0,
      "expected": 2298.0,
      "high": 3092.0
+    },
+    {
+     "code": "PUJ",
+     "nights": 5,
+     "month": "2027-01",
+     "fit": "stretch",
+     "low": 2126.0,
+     "expected": 2665.0,
+     "high": 3808.0
     },
     {
      "code": "YMQ",

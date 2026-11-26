@@ -93,7 +93,8 @@ Needs the LiteAPI **production** key, so hotel prices are real rather than sandb
   - Hotels are the weak part: median -8%, upscale tier -14%. Two Orlando trips (5-star, 2 rooms) and two Caribbean resort trips came out far too high (+68% to +479%); the sandbox price for big resort rooms looks unreliable. Re-run with the LiteAPI production key before quoting the number.
   - Big flight misses: New York Dec 4-6 (cache fare too low, -66%) and Bali over New Year (-36%).
   - Method notes: Booking.com searched as Guanacaste for Liberia and as Bali for Denpasar; Frankfurt 5-star resolved to the airport area; Edmonton has a single 5-star hotel.
-- [ ] **2.4b** Re-run the 50 trips once the production key is in, and look at the six trips over 25% total error.
+- [x] **2.4a Hotel band filters** (2026-11-26). Hotel bands now drop a hotel's quote when it is over 2.5x that hotel's own median across sample dates (sandbox spikes; Orlando 5-star February went to $2,094/night), and leave out all-inclusive resorts (their price includes meals, which daily spending already counts). Re-scored on the 50 checked trips: median total error 10% (was 11%), 90th percentile 27% (was 32%); Orlando A13 +192% → +39%, Punta Cana A08 +54% → +9%. Cancun got slightly lower (A26 -22% → -27%).
+- [ ] **2.4b** Re-run the 50 trips once the production key is in, and look at the trips still over 25% total error (Orlando 5-star in January, Kingston, New York flights, Bali over New Year).
   - Pass: median total error within about 20-25%.
   - Fail: fix the weakest component and re-run.
 
