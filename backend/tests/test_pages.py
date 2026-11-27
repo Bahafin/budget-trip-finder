@@ -277,7 +277,7 @@ def test_brand_is_one_constant(built):
     _, _, files = built
     text = next(iter(files.values()))
     assert pages.BRAND_NAME in text
-    assert Path(pages.__file__).read_text(encoding="utf8").count('"Budget Trip Finder"') == 1
+    assert Path(pages.__file__).read_text(encoding="utf8").count('"Far Enough"') == 1
 
 
 def test_estimated_fare_gets_a_search_link_for_its_own_dates():

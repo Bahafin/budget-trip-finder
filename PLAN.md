@@ -1,4 +1,4 @@
-# Budget Trip Finder: Implementation Plan
+# Far Enough: Implementation Plan
 
 Re-planned 2026-11-25 (first version 2026-11-21). The spec is [docs/PHASE1_SPEC.md](docs/PHASE1_SPEC.md). This file says what gets built, in what order, and what has to be true before each step. The owner's own tasks are in [TODO.md](TODO.md).
 

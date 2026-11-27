@@ -50,11 +50,11 @@ from .links import room_adults
 from .money import Money, PriceRange
 
 # ---- Brand and site settings ------------------------------------------------------------------------------
-# One place to rebrand: switch to "Far Enough" once farenough.ca is registered (TODO.md).
-BRAND_NAME = "Budget Trip Finder"
+# One place to rebrand (with site/index.html). Renamed to Far Enough 2026-11-26.
+BRAND_NAME = "Far Enough"
 BRAND_TAGLINE = "See how far your budget goes."
 BRAND_DESCRIPTOR = "Whole-trip budgets from Toronto"
-SITE_URL = "https://bahafin.github.io/budget-trip-finder/"  # canonical base; change with the domain
+SITE_URL = "https://farenoughtrips.com/"  # canonical base (Cloudflare Pages); change with the launch domain
 
 ORIGIN_SLUG = "from-toronto"
 ORIGIN_NAME = "Toronto"

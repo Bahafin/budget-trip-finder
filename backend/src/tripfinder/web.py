@@ -18,7 +18,7 @@ PAGE = Path(__file__).with_name("static") / "index.html"
 
 
 def create_app(settings: Settings) -> FastAPI:
-    app = FastAPI(title="Budget Trip Finder POC")
+    app = FastAPI(title="Far Enough POC")
     conn = connect(settings.db_path)
     notes = load_notes(settings.seed_dir)
 

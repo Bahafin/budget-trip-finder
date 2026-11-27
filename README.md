@@ -1,4 +1,4 @@
-# Budget Trip Finder (prototype)
+# Far Enough (prototype)
 
 Enter a total trip budget and get whole trips from a Canadian city (Toronto, Montreal or Vancouver for now) that fit: flights, hotel and daily spending, as a low / expected / high range in CAD.
 

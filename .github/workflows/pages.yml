@@ -1,7 +1,8 @@
 name: Refresh data and deploy site
 
 # Daily: refresh whatever is due (flights daily, hotels weekly, reference data monthly), export the site
-# snapshot, check the browser engine against the Python engine, deploy to GitHub Pages.
+# snapshot, check the browser engine against the Python engine, deploy to Cloudflare Pages (farenoughtrips.com,
+# project "farenough") and to GitHub Pages (the old address, kept until the new one is confirmed).
 # The database lives in the Actions cache between runs. If the cache is lost, `refresh auto` rebuilds it
 # from scratch (about 6 minutes). If the API keys are not configured, the committed snapshot is deployed.
 
@@ -10,7 +11,7 @@ on:
     - cron: "17 9 * * *" # 09:17 UTC = 04:17 Toronto (EST)
   push:
     branches: [main]
-    paths: ["site/**", "backend/**", "data/seed/**", ".github/workflows/pages.yml"]
+    paths: ["site/**", "backend/**", "data/seed/**", "functions/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
     inputs:
       force:
@@ -115,6 +116,14 @@ jobs:
       - name: Leave tests out of the published site
         run: rm -rf site/tests
 
+      - name: Keep the built site for the Cloudflare deploy
+        uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: site
+          include-hidden-files: true
+          retention-days: 3
+
       - uses: actions/configure-pages@v6
 
       - uses: actions/upload-pages-artifact@v5
@@ -130,3 +139,58 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  # Cloudflare Pages: farenoughtrips.com. Secrets CLOUDFLARE_API_TOKEN (Account > Cloudflare Pages > Edit) and
+  # CLOUDFLARE_ACCOUNT_ID. Creates the project and attaches the domains on the first run; later runs only deploy.
+  cloudflare:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROJECT: farenough
+    steps:
+      - uses: actions/checkout@v7 # for functions/ (the www redirect)
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: site
+
+      - name: Create the Pages project if it doesn't exist
+        id: project
+        run: |
+          if [ -z "$CF_TOKEN" ] || [ -z "$CF_ACCOUNT" ]; then
+            echo "::warning::Cloudflare secrets missing; skipping the Cloudflare deploy"; exit 0
+          fi
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+          api="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/pages/projects"
+          code=$(curl -s -o /tmp/p.json -w '%{http_code}' -H "Authorization: Bearer $CF_TOKEN" "$api/$PROJECT")
+          if [ "$code" = "404" ]; then
+            curl -sf -X POST -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json"               -d "{\"name\":\"$PROJECT\",\"production_branch\":\"main\"}" "$api" > /dev/null
+            echo "Created Pages project $PROJECT"
+          elif [ "$code" != "200" ]; then
+            echo "::error::Cloudflare API answered $code for the project lookup"; jq -c '.errors' /tmp/p.json; exit 1
+          fi
+
+      - name: Deploy to Cloudflare Pages
+        if: steps.project.outputs.ok == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy site --project-name=farenough --branch=main --commit-dirty=true
+
+      - name: Custom domains
+        if: steps.project.outputs.ok == 'true'
+        run: |
+          api="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/pages/projects/$PROJECT/domains"
+          for d in farenoughtrips.com www.farenoughtrips.com; do
+            have=$(curl -s -H "Authorization: Bearer $CF_TOKEN" "$api/$d" | jq -r '.success')
+            if [ "$have" != "true" ]; then
+              curl -s -X POST -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json"                 -d "{\"name\":\"$d\"}" "$api" | jq -c '{success, errors}'
+            fi
+          done
+          echo "## Cloudflare custom domains" >> "$GITHUB_STEP_SUMMARY"
+          curl -s -H "Authorization: Bearer $CF_TOKEN" "$api"             | jq -r '.result[] | "- \(.name): \(.status)\(if .verification_data.error_message then " (" + .verification_data.error_message + ")" else "" end)"'             | tee -a "$GITHUB_STEP_SUMMARY"
