@@ -50,7 +50,7 @@ What changed is that the proof of concept is done. The next job is to make it go
 | Daily spend | Canadian baseline x World Bank price level | Weakest number; Gate A checks it |
 | Hotel link | Expedia (tracked, since 2026-11-26); Hotels.com ready as a switch; Booking.com later | Booking.com needs traffic |
 | Activities | Viator (direct), Klook and KKday for Asia | Viator has no traffic minimum |
-| Hosting | GitHub Pages static site + GitHub Actions refresh | Free; fine until a real backend is needed |
+| Hosting | Cloudflare Pages (farenoughtrips.com) + GitHub Actions refresh | Free; Pages Functions when a small server part is needed |
 | LLM | After Gate A | Not needed to pass any gate |
 
 ## Stages
@@ -79,7 +79,7 @@ Goal: testers see fresh, accurate-looking trips, and every click can earn.
   - (b) seasonality: weekly job stores LiteAPI's city price index for all 25 destinations. Each fare gets a factor (trip nights vs sample nights, half-weighted, clamped 0.6-2.0). Calibration in docs/validation-2026-11-24.md
   - (c) ~~`grouped_prices` for richer flight coverage~~ tested: it reads the same cache and adds almost nothing (Chicago in January: 1 fare either way). Thin destinations stay thin. The real fix is the live price check in Stage 4
   - (d) without a requested length, fares shorter than 3 nights are ignored. The default search now returns 3-5 night trips
-- [ ] **1.4 Tester feedback.** A "Was this price right?" link on each result, opening a short form with the trip pre-filled (owner provides the form). This doubles as Gate A data.
+- [x] **1.4 Tester feedback** (2026-11-26). "Was this price right? Tell us what you found" on each finder card: an email to hello@farenoughtrips.com with the trip, group, our total, range and parts filled in (`FEEDBACK_TO` in site/index.html; a form URL can replace it). Doubles as Gate A data.
 - [x] **1.5 Small fixes** (all three on the site by 2026-11-26).
   - Airline names instead of codes.
   - A visible "prices updated" date.
@@ -115,7 +115,7 @@ Needs the LiteAPI **production** key, so hotel prices are real rather than sandb
 - [x] **2.2 Real prices** (all 50 checked 2026-11-26 in the browser; `python -m tripfinder.gate_a_fill` records them; `tripfinder gate-a report` → `docs/gate-a/report.md`). For each trip, record the real flight price (Google Flights) and hotel price (Booking.com or Expedia, same tier):
   - I do this through the browser where sites allow it.
   - Tester feedback fills in the rest.
-- [ ] **2.3 Daily spend check.** Compare our daily figures with published per-city daily budgets, then adjust the baseline.
+- [x] **2.3 Daily spend check** (2026-11-26, docs/research/daily-spend-check-2026-11-26.md). 17 cities against BudgetYourTrip's reported meals + local transport: median ours/published 0.87, most within about 15%. Punta Cana, Istanbul, Lisbon, Orlando and New York were 20-40% low on their country level, so data/seed/daily_level.csv gives them a level halfway to the published one. Canadian baseline unchanged (the source disagrees with itself between Toronto and Vancouver). Next: a second source before changing more.
 - [x] **2.4 Report** (2026-11-26, sandbox hotel prices): **PASS**. Median absolute total error 11% (90th pct 32%), real total inside our range on 44 of 50 trips; holiday trips 9%.
   - Flights: median error +1%, so the 1.10 uplift stays (the +12% on the first 10 trips was a small sample).
   - Hotels are the weak part: median -8%, upscale tier -14%. Two Orlando trips (5-star, 2 rooms) and two Caribbean resort trips came out far too high (+68% to +479%); the sandbox price for big resort rooms looks unreliable. Re-run with the LiteAPI production key before quoting the number.
@@ -132,9 +132,9 @@ Done when the Gate A report exists. **This is the evidence for the employer and 
 ### Stage 3: Landing page and demand test (Gate C, in parallel)
 
 - [x] Brand name chosen: **Far Enough** (2026-11-26); plans in docs/brand/ and docs/content/. Domain and handles to register (owner, TODO.md).
-- [ ] **Hosting move** (domain registered 2026-11-26; waiting on the owner's Cloudflare account and the two secrets, TODO.md): Cloudflare Pages with the custom domain, rename the site to Far Enough, hello@ forwarding. The daily GitHub workflow only changes its deploy step (`wrangler pages deploy site`, project name farenough; GitHub Pages stays up until the new address works, then redirects).
-- [ ] Landing page: the pitch, a few live example trips, email sign-up, affiliate disclosure. It also gives the Booking.com (CJ) and Skyscanner applications a real site to review.
-- [ ] Simple, privacy-friendly analytics: visits, sign-ups, clicks.
+- [x] **Hosting move** (2026-11-26). The daily workflow deploys the built site to Cloudflare Pages (project farenough, https://farenough.pages.dev; created and given its custom domains by the workflow itself, which lists domain status in the run summary), and still to GitHub Pages. A Pages Function (functions/_middleware.js) sends www to the bare domain; site/404.html gives real 404s. Renamed to **Far Enough** (BRAND_NAME in pages.py, site/index.html; canonical https://farenoughtrips.com/). **Left:** the DNS records for farenoughtrips.com (owner, TODO.md); once the domain serves the site, the workflow turns GitHub Pages into a redirect by itself (deploy/github-pages-redirect.html).
+- [ ] Landing page: the pitch, a few live example trips, email sign-up, affiliate disclosure. **Done so far (2026-11-26):** /about/ (pitch, method, how we make money, which links are affiliate links) and /privacy/, linked from every page. **Waiting on the owner:** the sign-up provider (MailerLite suggested) and a CASL mailing address. It also gives the Booking.com (CJ) and Skyscanner applications a real site to review.
+- [ ] Simple, privacy-friendly analytics: visits, sign-ups, clicks. Plan: Cloudflare Web Analytics for visits (owner enables it, one click, TODO.md); partner clicks from the Travelpayouts and Expedia reports (per-destination tags on every link); sign-ups from the mail provider.
 - [ ] Run 4-6 weeks against the **agreed Gate C thresholds** (2026-11-26), judged after at least 1,000 unique visitors:
   - **Pass:** email sign-ups at least 5% of visitors, partner clicks at least 15% of searchers, and 10+ unprompted replies.
   - **Fail:** sign-ups under 2% and clicks under 8%.
