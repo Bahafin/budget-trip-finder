@@ -49,7 +49,7 @@ def test_finder_index_lists_written_hubs(built):
     for code, path in index.items():
         assert path in hubs and (site / path / "index.html") in files, code
         assert re.fullmatch(r"from-toronto/[a-z0-9-]+/", path), path
-    priced = {d["code"] for d in json.loads((SITE / "data.json").read_text())["destinations"] if d["fares"]}
+    priced = {d["code"] for d in json.loads((SITE / "data.json").read_text())["destinations"] if d["fares"] or d.get("ground")}
     assert set(index) <= priced
 
 

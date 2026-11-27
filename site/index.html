@@ -379,7 +379,7 @@ function card(p, req, data) {
       el("div", { class: "lbl" }, `likely ${money(p.total.low)} – ${money(p.total.high)}`)),
     el("div", { class: "pp" }, el("b", {}, money(p.total.expected / travellers)), el("div", { class: "lbl" }, "per person")),
   ));
-  const hub = g ? null : pageIndex[p.dest.code]; // destination pages price flight trips only, for now
+  const hub = pageIndex[p.dest.code];
   if (hub) b.append(el("p", { class: "breakdown" }, el("a", { href: hub }, `See the full cost breakdown for ${p.dest.name}`)));
   const diff = req.budget - p.total.expected;
   b.append(el("div", { class: `left ${p.fit}` }, p.fit === "within"

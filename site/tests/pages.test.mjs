@@ -18,14 +18,14 @@ test(`pages manifest matches the browser engine (${slug})`, { skip: !existsSync(
   const manifest = JSON.parse(readFileSync(manifestUrl, "utf8"));
   const C = snapshot.constants;
   const today = manifest.today;
-  // Destination pages price flight trips only (ground trips are finder-only for now), so ground options are left out.
-  const dests = new Map(prepare(snapshot, today).map((d) => [d.code, { ...d, ground: null }]));
+  const dests = new Map(prepare(snapshot, today).map((d) => [d.code, d]));
   assert.ok(manifest.calls.length > 0, "no priced calls in the manifest");
   for (const call of manifest.calls) {
     let dest = dests.get(call.code);
     if (call.window) {
       const w = call.window;
-      dest = { ...dest, fares: dest.fares.filter((f) => w.departFrom <= f.depart && f.depart <= w.departTo && w.retFrom <= f.ret && f.ret <= w.retTo) };
+      // Seasonal windows (March break) are fixed dates, priced by plane only: no ground option (window_dest in pages.py).
+      dest = { ...dest, ground: null, fares: dest.fares.filter((f) => w.departFrom <= f.depart && f.depart <= w.departTo && w.retFrom <= f.ret && f.ret <= w.retTo) };
     }
     const req = call.request;
     const got = call.kind === "price" ? pricePackage(dest, req, call.nights, req.month, today, C) : bestPackage(dest, req, today, C);

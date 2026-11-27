@@ -29,17 +29,18 @@ from typing import Any
 from urllib.parse import urlencode
 
 from .assets import slugify
-
 from .config import ROOT
 from .engine import (
     CHILD_DAILY_SHARE,
     DAILY_BASE_CAD,
     DestinationData,
     Fare,
+    Ground,
     LodgingBand,
     Package,
     TripRequest,
     best_package,
+    ground_months,
     price_package,
     rank,
     rooms_needed,
@@ -134,10 +135,22 @@ def load_snapshot(path: Path) -> Snapshot:
             for b in d["bands"]
         }
         level = Decimal(str(d["priceLevel"])) if d.get("priceLevel") is not None else None
-        dests.append(DestinationData(d["code"], d["name"], d["country"], fares, bands, level))
+        dests.append(DestinationData(d["code"], d["name"], d["country"], fares, bands, level, ground_of(d.get("ground"))))
         hotel[d["code"]] = d.get("hotel")
         flight_search[d["code"]] = d.get("flightSearch") or ""
     return Snapshot(today, raw["generatedAt"], raw["constants"], dests, hotel, flight_search, raw.get("advisories", {}), raw.get("notes", {}))
+
+
+def ground_of(g: dict[str, Any] | None) -> Ground | None:
+    """The export's "ground" object back into the engine's Ground (same fields, camelCase)."""
+    if not g:
+        return None
+    def m(v: Any) -> Money | None:
+        return Money.of(v) if v else None
+
+    return Ground(g.get("mode") or "", Money.of(g["fare"]) if g.get("fare") is not None else None, g.get("hours") or 0,
+                  g.get("km") or 0, g.get("driveHours") or 0, m(g.get("carExtra")), m(g.get("carPerPerson")), m(g.get("parking")),
+                  g.get("link") or "", g.get("partner") or "")
 
 
 def load_photos(path: Path) -> dict[str, dict[str, str]]:
@@ -183,7 +196,7 @@ def window_dest(dest: DestinationData, w: dict[str, str]) -> DestinationData:
     """Destination restricted to fares inside a date window (seasonal pages)."""
     keep = [f for f in dest.fares
             if w["departFrom"] <= f.depart.isoformat() <= w["departTo"] and w["retFrom"] <= f.ret.isoformat() <= w["retTo"]]
-    return replace(dest, fares=keep)
+    return replace(dest, fares=keep, ground=None)
 
 
 # ---- HTML helpers -----------------------------------------------------------------------------------------
@@ -281,6 +294,38 @@ def stops(f: Fare) -> str:
     if not f.airline:
         return ""
     return f"{f.airline}, " + ("direct" if not f.transfers else f"{f.transfers} stop{'s' if f.transfers > 1 else ''}")
+
+
+BY = {"train": "by train", "bus": "by bus", "ferry": "by ferry", "car": "by car"}
+
+
+def is_ground(p: Package) -> bool:
+    return p.fare.mode != "flight"
+
+
+def transport_label(pkgs: Iterable[Package], n: int) -> str:
+    """Row name for the getting-there cost: "Flights for 2", "Train for 2", "Driving (fuel, parking)"."""
+    modes = {p.fare.mode for p in pkgs}
+    if modes == {"flight"}:
+        return f"Flights for {n}"
+    if modes == {"car"}:
+        return "Driving: fuel and parking"
+    if len(modes) == 1:
+        return f"{next(iter(modes)).capitalize()} for {n}"
+    return f"Getting there for {n}"
+
+
+def ground_sentence(d: DestinationData, origin: str, amt: Any) -> str:
+    """One line on reaching the place without flying, from data/seed/ground.csv."""
+    g = d.ground
+    if g is None:
+        return ""
+    parts = []
+    if g.mode and g.fare is not None:
+        parts.append(f"{BY.get(g.mode, g.mode)} in about {g.hours:g} hours (from about {amt(g.fare)} one way per adult)")
+    if g.km:
+        parts.append(f"{g.km:,} km by car (about {g.drive_hours:g} hours{', with the ferry' if g.car_extra else ''})")
+    return f"{esc(name_of(d))} is " + " or ".join(parts) + f" from {esc(origin)}."  # HTML: amt() gives dated spans
 
 
 def conf_text(c: str) -> str:
@@ -394,7 +439,8 @@ def newest_fare_date(snap: Snapshot) -> date:
 
 INCLUDED_TEMPLATE = (
     '<section class="box"><h2>What\'s in these numbers, and what isn\'t</h2><div class="two">'
-    "<div><h3>Included</h3><ul><li>Return flights from {origin} for everyone</li><li>A hotel room for every night, "
+    "<div><h3>Included</h3><ul><li>Getting there and back from {origin} for everyone: return flights, or the train, bus or drive "
+    "for places in reach</li><li>A hotel room for every night, "
     "including fees the hotel charges on arrival when the hotel lists them</li><li>Day-to-day spending: food, local transport, "
     "modest entry fees</li></ul></div>"
     "<div><h3>Not included</h3><ul><li>All-inclusive meal plans (these are hotel-room prices)</li><li>Checked bags, if the fare "
@@ -429,7 +475,7 @@ def advisory_block(snap: Snapshot, d: DestinationData) -> str:
 def tier_table(fmt: Fmt, pkgs: dict[str, Package]) -> str:
     tiers = [t for t in ("budget", "mid", "upscale") if t in pkgs]
     head = "".join(f"<th scope=\"col\">{esc(TIER_LABEL[t])}</th>" for t in tiers)
-    names = {"flights": f"Flights for {ADULTS}", "lodging": "Hotel", "daily": "Day-to-day spending"}
+    names = {"flights": transport_label(pkgs.values(), ADULTS), "lodging": "Hotel", "daily": "Day-to-day spending"}
     rows = []
     for i, cname in enumerate(("flights", "lodging", "daily")):
         cells = "".join(f"<td>{fmt.cell(pkgs[t].components[i].total)}</td>" for t in tiers)
@@ -445,10 +491,18 @@ def method_list(fmt: Fmt, pkgs: dict[str, Package]) -> str:
     any_pkg = pkgs.get("mid") or next(iter(pkgs.values()))
     f = any_pkg.fare
     flights = any_pkg.components[0]
+    if is_ground(any_pkg):
+        items = [(f"<li><b>Getting there:</b> {esc(flights.detail)}. A rough figure from typical fares and driving costs, "
+                  "not a live price, so check the operator before you book.</li>")]
+        return method_tail(fmt, pkgs, items)
     lead = ("cheapest cached return fare for these dates was" if f.link else
             f"no cached fare for {any_pkg.nights} nights, so this is estimated from the cheapest fare that month,")
     items = [(f"<li><b>Flights:</b> {lead} {fmt.amt(f.price)} per person"
              f"{' (' + esc(stops(f)) + ')' if stops(f) else ''}, seen on {esc(day_long(f.found_on))}; {esc(conf_text(flights.confidence))}.</li>")]
+    return method_tail(fmt, pkgs, items)
+
+
+def method_tail(fmt: Fmt, pkgs: dict[str, Package], items: list[str]) -> str:
     for t, p in pkgs.items():
         lod = p.components[1]
         level = p.destination.price_level if p.destination.price_level is not None else Decimal(1)
@@ -465,7 +519,10 @@ PARTNER_NOTE = '<p class="fine">Partner buttons open the partner site, where you
 
 def partner_ctas(snap: Snapshot, d: DestinationData, fare: Fare, adults: int = ADULTS, children: int = 0, note: bool = True) -> str:
     out = []
-    url = flight_link(snap, d.code, fare, adults, children)
+    g = d.ground if fare.mode != "flight" else None
+    url = "" if g else flight_link(snap, d.code, fare, adults, children)
+    if g and fare.mode != "car" and g.link:  # plain link to the operator, not an affiliate link
+        out.append(f'<a class="btn primary" href="{esc(g.link)}" target="_blank" rel="noopener">Check fares on {esc(g.partner or "the operator")} ↗</a>')
     if url:
         out.append(sponsored(url, "See these flights on Aviasales" if fare.link else "Search these dates on Aviasales", "btn primary"))
     h = hotel_link(snap, d.code, fare, adults, children)
@@ -514,7 +571,7 @@ class Builder:
         return sorted({f.month for d in self.snap.dests for f in d.fares})
 
     def dest_months(self, d: DestinationData) -> list[str]:
-        return sorted({f.month for f in d.fares})
+        return sorted({f.month for f in d.fares} | (set(ground_months(d, self.snap.today)) if d.ground else set()))
 
     def week(self, d: DestinationData, month: str, tier: str) -> Package | None:
         return self.pricer.price(d, self.pricer.req(999_999, tier, month, HUB_NIGHTS), HUB_NIGHTS, month)
@@ -526,6 +583,20 @@ class Builder:
             if p is not None:
                 out[t] = p
         return out
+
+    def transport_cell(self, p: Package) -> str:
+        if is_ground(p):
+            return f"{esc(BY.get(p.fare.mode, p.fare.mode))}, about {self.fmt.amt(p.components[0].total.expected * (Decimal(1) / Decimal(ADULTS)))}"
+        return self.fmt.amt(p.fare.price)
+
+    def ground_box(self, d: DestinationData) -> str:
+        line = ground_sentence(d, ORIGIN_NAME, self.fmt.amt)
+        if not line:
+            return ""
+        how = ("We price the trip both by plane and on the ground and show the cheaper." if d.fares
+               else "We have no flight prices for it, so we price it on the ground.")
+        return (f'<section class="box"><h2>No flight needed</h2><p>{line} {how} Ground costs are rough figures from typical fares '
+                "and driving costs, not live prices.</p></section>")
 
     def dest_path(self, d: DestinationData) -> str:
         return f"{ORIGIN_SLUG}/{SLUGS.get(d.code) or slugify(d.name) or d.code.lower()}/"
@@ -543,12 +614,12 @@ class Builder:
         return {"@type": "TouristDestination", "name": name_of(d),
                 "containedInPlace": {"@type": "Country", "name": COUNTRIES.get(d.country_code, d.country_code)}}
 
-    def month_gate(self, d: DestinationData, month: str) -> tuple[bool, str]:
+    def month_gate(self, d: DestinationData, month: str, by_ground: bool = False) -> tuple[bool, str]:
         fares = [f for f in d.fares if f.month == month]
         band = d.bands.get((month, "mid"))
-        if len(fares) < GATE_MONTH_FARES:
+        if not by_ground and len(fares) < GATE_MONTH_FARES:  # a trip by train, bus or car needs no fare
             return False, f"{len(fares)} fares (< {GATE_MONTH_FARES})"
-        if not any(GATE_MONTH_WEEK[0] <= f.nights <= GATE_MONTH_WEEK[1] for f in fares):
+        if not by_ground and not any(GATE_MONTH_WEEK[0] <= f.nights <= GATE_MONTH_WEEK[1] for f in fares):
             return False, "no fare about a week long"
         if band is None or band.sample_size < GATE_MONTH_BAND_N:
             return False, f"mid hotel sample {band.sample_size if band else 0} (< {GATE_MONTH_BAND_N})"
@@ -576,9 +647,11 @@ class Builder:
         if mid and bud:
             answer += f", or about <b>{f.amt(bud.total.expected)}</b> with a budget hotel"
         share = lead.components[0].total.expected.amount / lead.total.expected.amount
-        answer += (f". That covers flights, the hotel and day-to-day spending, estimated on {esc(day_long(self.snap.today))}. "
-                   + (f"The flights are about {round(share * 100)}% of it." if share >= Decimal("0.5")
-                      else f"The flights are only about {round(share * 100)}% of it; the rest is the stay."))
+        there = f"getting there {BY.get(lead.fare.mode, lead.fare.mode)}" if is_ground(lead) else "flights"
+        cost = "Getting there is" if is_ground(lead) else "The flights are"
+        answer += (f". That covers {there}, the hotel and day-to-day spending, estimated on {esc(day_long(self.snap.today))}. "
+                   + (f"{cost} about {round(share * 100)}% of it." if share >= Decimal("0.5")
+                      else f"{cost} only about {round(share * 100)}% of it; the rest is the stay."))
 
         month_rows = []
         for m in months:
@@ -590,7 +663,7 @@ class Builder:
             month_rows.append(
                 f'<tr><th scope="row"><a href="{esc(rel(path, link_path))}">{esc(month_label(m))}</a></th>'
                 f"<td>{esc(day(any_p.fare.depart))}–{esc(day(any_p.fare.ret))} ({any_p.nights} nights)</td>"
-                f"<td>{f.amt(any_p.fare.price)}</td>"
+                f"<td>{self.transport_cell(any_p)}</td>"
                 f"<td>{f.amt(p['budget'].total.expected) if 'budget' in p else '–'}</td>"
                 f"<td>{f.amt(p['mid'].total.expected) if 'mid' in p else '–'}</td></tr>"
             )
@@ -603,18 +676,19 @@ class Builder:
         )
         body = [
             f'<p class="answer">{answer}</p>',
+            self.ground_box(d),
             f"<h2>The whole bill for {lead.nights} nights in {esc(month_label(head_month))}</h2>",
             f"<p>{esc(day_long(lead.fare.depart))} to {esc(day_long(lead.fare.ret))}, {lead.nights} nights, {ADULTS} adults sharing one room.</p>",
             tier_table(f, head),
             method_list(f, head),
             partner_ctas(self.snap, d, lead.fare),
             f"<h2>When you go changes the price</h2><p>About a week ({GATE_MONTH_WEEK[0]}–{GATE_MONTH_WEEK[1]} nights) for {ADULTS} adults at the cheapest dates we found in each month.</p>",
-            '<div class="scroll"><table><thead><tr><th>Month</th><th>Dates</th><th>Cheapest fare per person</th>'
+            '<div class="scroll"><table><thead><tr><th>Month</th><th>Dates</th><th>Getting there, per person</th>'
             "<th>Trip total, budget hotel</th><th>Trip total, mid-range hotel</th></tr></thead><tbody>"
             + "".join(month_rows) + "</tbody></table></div>",
-            f"<h2>Cheapest {esc(ORIGIN_NAME)}–{esc(nm)} fares we've seen</h2><p>Per person, return, CAD. Cached fares change quickly.</p>",
-            ('<div class="scroll"><table><thead><tr><th>Dates</th><th>Nights</th><th>Airline</th><th>Fare</th><th>Seen on</th><th></th></tr></thead>'
-            f"<tbody>{fare_rows}</tbody></table></div>"),
+            (f"<h2>Cheapest {esc(ORIGIN_NAME)}–{esc(nm)} fares we've seen</h2><p>Per person, return, CAD. Cached fares change quickly.</p>"
+             '<div class="scroll"><table><thead><tr><th>Dates</th><th>Nights</th><th>Airline</th><th>Fare</th><th>Seen on</th><th></th></tr></thead>'
+             f"<tbody>{fare_rows}</tbody></table></div>") if fare_rows else "",
             self.faq_hub(d, by_month, head_month, mid, bud),
             INCLUDED,
             self.how_sure(path, d),
@@ -627,7 +701,7 @@ class Builder:
         self.pages.append(Page(
             path=path,
             title=f"{nm} trip cost from {ORIGIN_NAME}: a week for two in CAD",
-            description=f"What a week in {nm} really costs from {ORIGIN_NAME} for two: flights, hotel and day-to-day spending as dated CAD estimates.",
+            description=f"What a week in {nm} really costs from {ORIGIN_NAME} for two: {'getting there' if d.ground else 'flights'}, hotel and day-to-day spending as dated CAD estimates.",
             h1=f"{nm} from {ORIGIN_NAME}: what a trip really costs",
             eyebrow=f"{COUNTRIES.get(d.country_code, d.country_code)} · estimated {day_long(self.snap.today)}",
             body="".join(body),
@@ -667,7 +741,7 @@ class Builder:
         if lead is None:
             return
         nm = name_of(d)
-        gate, why = self.month_gate(d, month)
+        gate, why = self.month_gate(d, month, is_ground(lead))
         answer = (f"A {lead.nights}-night trip for {ADULTS} adults from {ORIGIN_NAME} in {month_label(month)} is estimated at about "
                   f"<b>{f.amt(lead.total.expected)}</b> with a {TIER_SHORT['mid' if 'mid' in pk else 'budget']} hotel (likely {f.rng(lead.total)})"
                   + (f", or about <b>{f.amt(pk['budget'].total.expected)}</b> with a budget hotel" if "mid" in pk and "budget" in pk else "")
@@ -699,6 +773,7 @@ class Builder:
         )
         body = [
             f'<p class="answer">{answer}</p>',
+            self.ground_box(d),
             f"<h2>{lead.nights} nights in {esc(month_label(month))}, three ways</h2>",
             f"<p>{esc(day_long(lead.fare.depart))} to {esc(day_long(lead.fare.ret))}, {lead.nights} nights, {ADULTS} adults sharing one room.</p>",
             tier_table(f, pk),
@@ -709,9 +784,9 @@ class Builder:
             "“Stretch” means it fits only if prices land near the low end of our range.</p>"),
             ('<div class="scroll"><table><thead><tr><th>Budget</th><th>Budget hotel</th><th>Mid-range hotel</th></tr></thead>'
             f"<tbody>{''.join(rows)}</tbody></table></div>"),
-            f"<h2>Cheapest fares in {esc(month_label(month))}</h2>",
-            ('<div class="scroll"><table><thead><tr><th>Dates</th><th>Nights</th><th>Airline</th><th>Fare per person</th><th>Seen on</th><th></th></tr></thead>'
-            f"<tbody>{fare_rows}</tbody></table></div>"),
+            (f"<h2>Cheapest fares in {esc(month_label(month))}</h2>"
+             '<div class="scroll"><table><thead><tr><th>Dates</th><th>Nights</th><th>Airline</th><th>Fare per person</th><th>Seen on</th><th></th></tr></thead>'
+             f"<tbody>{fare_rows}</tbody></table></div>") if fare_rows else "",
             (f"<p>Other months: {siblings}</p>" if siblings else ""),
             INCLUDED,
             self.how_sure(path, d),
@@ -722,7 +797,7 @@ class Builder:
         self.pages.append(Page(
             path=path,
             title=f"{nm} from {ORIGIN_NAME} in {month_label(month)}: cost for two",
-            description=f"What a trip to {nm} from {ORIGIN_NAME} costs in {month_label(month)}: flights, hotel and daily spending, dated estimates in CAD.",
+            description=f"What a trip to {nm} from {ORIGIN_NAME} costs in {month_label(month)}: {'getting there' if d.ground else 'flights'}, hotel and daily spending, dated estimates in CAD.",
             h1=f"{nm} from {ORIGIN_NAME} in {month_label(month)}",
             eyebrow=f"{COUNTRIES.get(d.country_code, d.country_code)} · estimated {day_long(self.snap.today)}",
             body="".join(body),
@@ -744,10 +819,14 @@ class Builder:
         f = self.fmt
         d = p.destination
         ph = self.photos.get(d.code)
-        names = {"flights": f"Flights for {adults + children}", "lodging": f"Hotel, {p.nights} nights", "daily": "Day-to-day"}
+        names = {"flights": f"Flights for {adults + children}", "ground": transport_label([p], adults + children),
+                 "lodging": f"Hotel, {p.nights} nights", "daily": "Day-to-day"}
         comps = "".join(f"<li><span>{names[c.name]}</span><b>{f.amt(c.total.expected)}</b></li>" for c in p.components)
         warn = ""
-        if p.components[0].confidence == "estimated":
+        if is_ground(p):
+            hours = d.ground.drive_hours if p.fare.mode == "car" else d.ground.hours
+            warn = f'<p class="fine">No flight: {esc(BY.get(p.fare.mode, p.fare.mode))}, about {hours:g} hours. {"Rough cost: fuel and parking." if p.fare.mode == "car" else "Rough cost from typical fares."}</p>'
+        elif p.components[0].confidence == "estimated":
             warn = '<p class="fine">Rougher than the others: no cached fare matched this trip length, so the flight cost is estimated from other dates.</p>'
         lodging = p.components[1]
         if "from " in lodging.detail and lodging.confidence.startswith("sampled"):
@@ -799,7 +878,8 @@ class Builder:
             rows = []
             for p in over_bud[:12]:
                 big = max(p.components, key=lambda c: c.total.expected.amount)
-                reason = {"flights": f"Flights: about {f.amt(big.total.expected)} for two", "lodging": f"Hotel: about {f.amt(big.total.expected)}",
+                reason = {"flights": f"Flights: about {f.amt(big.total.expected)} for two",
+                          "ground": f"Getting there {BY.get(p.fare.mode, p.fare.mode)}: about {f.amt(big.total.expected)} for two", "lodging": f"Hotel: about {f.amt(big.total.expected)}",
                           "daily": f"Day-to-day spending: about {f.amt(big.total.expected)}"}[big.name]
                 rows.append(f'<tr><th scope="row"><a href="{esc(rel(path, self.dest_month_path(p.destination, month)))}">{esc(name_of(p.destination))}</a></th>'
                             f"<td>{p.nights}</td><td>{f.amt(p.total.expected)}</td><td>{reason}</td></tr>")
@@ -999,23 +1079,27 @@ class Builder:
         lead = mid or bud
         tier = "mid" if mid else "budget"
         qa: list[tuple[str, str]] = []
+        ground = is_ground(lead)
+        have = "we have prices for" if ground else "we have fares for"
         a = (f"About {f.amt(lead.total.expected)} for {lead.nights} nights in {esc(month_label(head_month))} with a "
-             f"{TIER_SHORT[tier]} hotel, in the cheapest month we have fares for")
+             f"{TIER_SHORT[tier]} hotel, in the cheapest month {have}")
         if mid and bud:
             a += f", or about {f.amt(bud.total.expected)} with a budget hotel"
         qa.append((f"How much does a week in {nm} cost for two from {ORIGIN_NAME}?",
-                   a + ". That's return flights for two, the hotel and day-to-day spending, as an estimate in CAD."))
+                   a + (f". That's getting there and back {BY.get(lead.fare.mode, lead.fare.mode)} for two" if ground else ". That's return flights for two")
+                   + ", the hotel and day-to-day spending, as an estimate in CAD."))
         same_tier = {m: p[tier] for m, p in by_month.items() if tier in p}
         if len(same_tier) >= 2:
             cheap = min(same_tier, key=lambda m: same_tier[m].total.expected.amount)
             dear = max(same_tier, key=lambda m: same_tier[m].total.expected.amount)
             ms = sorted(same_tier)
             qa.append((f"What's the cheapest month to go to {nm} from {ORIGIN_NAME}?",
-                       (f"Of the months we have fares for ({esc(month_label(ms[0]))} to {esc(month_label(ms[-1]))}), "
+                       (f"Of the months {have} ({esc(month_label(ms[0]))} to {esc(month_label(ms[-1]))}), "
                        f"{esc(month_label(cheap))} is the cheapest: about {f.amt(same_tier[cheap].total.expected)} for "
                        f"{same_tier[cheap].nights} nights with a {TIER_SHORT[tier]} hotel. {esc(month_label(dear))} is the most "
                        f"expensive, at about {f.amt(same_tier[dear].total.expected)} for {same_tier[dear].nights} nights. "
-                       "Cached fares only reach about three months ahead, so later months aren't here yet.")))
+                       + ("Our hotel samples only reach a few months ahead, so later months aren't here yet." if ground
+                        else "Cached fares only reach about three months ahead, so later months aren't here yet."))))
         fares = [x for x in d.fares if 3 <= x.nights <= 14]
         if fares:
             x0 = min(fares, key=lambda x: (x.price.amount, x.depart))
