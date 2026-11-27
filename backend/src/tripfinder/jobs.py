@@ -207,7 +207,12 @@ def refresh_flights(conn: sqlite3.Connection, s: Settings) -> dict[str, int]:
     for origin, code in conn.execute("SELECT origin, code FROM selection ORDER BY origin, code").fetchall():
         so = replace(s, origin=origin)
         for month in upcoming_months(s.months_ahead):
-            fares = p.fetch_fares(meter, so, month, destination=code)
+            try:
+                fares = p.fetch_fares(meter, so, month, destination=code)
+            except ApiError as e:
+                if "not flightable" in str(e):  # a place reached only by ground (Niagara Falls): no airport
+                    break
+                raise
             conn.executemany(
                 "INSERT OR REPLACE INTO fares VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 [

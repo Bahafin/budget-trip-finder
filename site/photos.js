@@ -296,5 +296,69 @@ export const PHOTOS = {
   "author": "acediscovery",
   "license": "CC BY 4.0",
   "page": "https://commons.wikimedia.org/wiki/File:Athens_Skyline.jpg"
+ },
+ "XLV": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a8/SkylineNiagaraFalls.jpg/960px-SkylineNiagaraFalls.jpg",
+  "alt": "Skyline of Niagara Falls, Ontario, from Niagara upstream. Buildings from left to right: Marriott on the Falls Hotel, Radisson Hotel & Su",
+  "tagline": "",
+  "author": "Sundar1",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:SkylineNiagaraFalls.jpg"
+ },
+ "YQB": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/65/Ch%C3%A2teau_Frontenac_and_Old_Quebec_seen_from_L%C3%A9vis_on_an_overcast_autumn_day.jpg/960px-Ch%C3%A2teau_Frontenac_and_Old_Quebec_seen_from_L%C3%A9vis_on_an_overcast_autumn_day.jpg",
+  "alt": "The Château Frontenac and Old Quebec seen from Lévis across the Saint Lawrence on an overcast autumn day. Quebec City, Quebec, Canada, Octob",
+  "tagline": "",
+  "author": "Wilfredor",
+  "license": "CC0",
+  "page": "https://commons.wikimedia.org/wiki/File:Ch%C3%A2teau_Frontenac_and_Old_Quebec_seen_from_L%C3%A9vis_on_an_overcast_autumn_day.jpg"
+ },
+ "YOW": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Ottawa_Skyline_June_2019.jpg/960px-Ottawa_Skyline_June_2019.jpg",
+  "alt": "A view of Ottawa from the Alexandra Bridge in Gatineau, Quebec. From Left to right: the Chateau Laurier, the Rideau Canal, Parliament Hill (",
+  "tagline": "",
+  "author": "Scoutguy5427",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Ottawa_Skyline_June_2019.jpg"
+ },
+ "YGK": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/Waterfront%2C_Kingston%2C_East_view_20170416_1.jpg/960px-Waterfront%2C_Kingston%2C_East_view_20170416_1.jpg",
+  "alt": "An east view of the waterfront of Kingston, Ontario. The Delta Waterfront Hotel is visible at the right, the city hall in the middle and the",
+  "tagline": "",
+  "author": "DXR",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Waterfront,_Kingston,_East_view_20170416_1.jpg"
+ },
+ "YTM": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cc/Mont-Tremblant_Resort_village_from_the_Cabriolet_gondola.jpg/960px-Mont-Tremblant_Resort_village_from_the_Cabriolet_gondola.jpg",
+  "alt": "View of Mont-Tremblant Resort’s pedestrian village from the Cabriolet gondola, with the Tour des Voyageurs clock tower in the background.",
+  "tagline": "",
+  "author": "Quintin Soloviev",
+  "license": "CC BY 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Mont-Tremblant_Resort_village_from_the_Cabriolet_gondola.jpg"
+ },
+ "YYJ": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e2/The_Empress_and_Inner_Harbour%2C_Victoria%2C_southwest_view_20240827_1.jpg/960px-The_Empress_and_Inner_Harbour%2C_Victoria%2C_southwest_view_20240827_1.jpg",
+  "alt": "A southwest view of The Empress hotel and Inner Harbour, Victoria BC",
+  "tagline": "",
+  "author": "DXR",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:The_Empress_and_Inner_Harbour,_Victoria,_southwest_view_20240827_1.jpg"
+ },
+ "YWS": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b2/Whistler%2C_British_Columbia%2C_Canada_%2820211763783%29.jpg/960px-Whistler%2C_British_Columbia%2C_Canada_%2820211763783%29.jpg",
+  "alt": "Whistler valley and the Coast Mountains from Whistler Mountain",
+  "tagline": "",
+  "author": "Richie Diesterheft from Santa Barbara, CA, USA",
+  "license": "CC BY-SA 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Whistler,_British_Columbia,_Canada_(20211763783).jpg"
+ },
+ "SEA": {
+  "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/01/Seattle_I-5_skyline_dllu.jpg/960px-Seattle_I-5_skyline_dllu.jpg",
+  "alt": "The Seattle skyline at dusk as viewed from the Jose Rizal Bridge. In the foreground is the Interstate 5 in Washington.",
+  "tagline": "",
+  "author": "Dllu",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Seattle_I-5_skyline_dllu.jpg"
  }
 };

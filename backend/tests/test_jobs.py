@@ -187,3 +187,24 @@ def test_fare_history_keeps_cheapest_per_city_month_and_length(tmp_path):
     assert save_fare_history(conn, date(2026, 11, 26)) == 2
     rows = {(r["origin"], r["nights"]): (r["min_price"], r["fares"]) for r in conn.execute("SELECT * FROM fare_history")}
     assert rows == {("YTO", 7): (280, 2), ("YVR", 7): (400, 1)}
+
+
+def test_flight_refresh_skips_places_without_an_airport(tmp_path, monkeypatch):
+    from tripfinder import jobs
+    from tripfinder.config import load_settings
+    from tripfinder.meter import ApiError
+
+    conn = _db(tmp_path)
+    conn.execute("INSERT INTO selection VALUES ('YTO','XLV'), ('YTO','YOW')")
+    asked = []
+
+    def fake_fetch(meter, s, month, destination=None):
+        asked.append(destination)
+        if destination == "XLV":  # Niagara Falls: reached by train or car only
+            raise ApiError("aviasales", 400, '{"error":"bad request: airport XLV: not flightable"}')
+        return []
+
+    monkeypatch.setattr(jobs.p, "fetch_fares", fake_fetch)
+    out = jobs.refresh_flights(conn, load_settings())
+    assert out["fares"] == 0
+    assert asked.count("XLV") == 1 and "YOW" in asked  # one try for the place without an airport, the rest go on

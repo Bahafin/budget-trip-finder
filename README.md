@@ -13,6 +13,7 @@ Enter a total trip budget and get whole trips from a Canadian city (Toronto, Mon
 ## Lists kept in the repo (data/seed/)
 
 - `origins.csv`: departure cities. `destinations.csv`: the destinations each departure city shows. Changing either makes the next daily run re-select and refresh.
+- `ground.csv`: places in reach without flying, per departure city: a public option (train, bus or ferry, with a typical advance one-way fare per adult and hours) and/or a car option (km one way, drive hours, parking per night, ferry fares). Hand-entered and rough; the engine prices the trip both ways (and by plane when there are fares) and shows the cheapest, always labelled "estimated". A ground place also needs its row in `destinations.csv` so it gets hotel prices.
 - `themes.csv`: "best for" tags and a "what to do" line per destination (hand-written, no prices). `site/photos.js`: one real, credited Wikimedia Commons photo per destination.
 - **To add a departure city:** add a row to `origins.csv` and its destinations to `destinations.csv` (check first that the Aviasales cache has at least 5 fares for each pair), then run `refresh auto`, `assets --fill-photos` (review any photo it marks `"review": true`), add theme rows for new places, `export` and `pages`. The daily workflow does everything except the theme rows and the photo review.
 - `fare_history` and `band_history` (database tables) keep one summary row a day, so we can later say how today's prices compare with what we've seen.

@@ -216,3 +216,57 @@ def test_estimated_fare_dates_span_the_nights_priced():
     pkg = price_package(d, req, 7, "2027-01", date(2026, 11, 25))
     assert pkg.nights == 7 and (pkg.fare.ret - pkg.fare.depart).days == 7
     assert pkg.fare.depart == date(2027, 1, 10) and pkg.fare.link == ""
+
+
+# --- trips without a flight (research #7) ------------------------------------
+
+from tripfinder.engine import Ground, ground_depart  # noqa: E402
+
+
+def ground(mode="train", fare_=50, km=200, parking=20):
+    return Ground(mode=mode, fare=Money.of(fare_) if fare_ is not None else None, hours=2, km=km, drive_hours=2,
+                  parking=Money.of(parking))
+
+
+def ground_dest(g, fares=None):
+    bands = {("2026-12", "mid"): band(100, 120, 150), ("2027-01", "mid"): band(100, 120, 150)}
+    return DestinationData("YOW", "Ottawa", "CA", fares or [], bands, Decimal(1), g)
+
+
+def test_ground_departs_on_the_first_friday_a_week_out():
+    assert ground_depart("2026-11", TODAY) is None  # a week from Mon 23 Nov is Mon 30 Nov; next Friday is in December
+    assert ground_depart("2026-12", TODAY) == date(2026, 12, 4)
+    assert ground_depart("2027-01", TODAY) == date(2027, 1, 1)  # a Friday
+
+
+def test_ground_takes_the_cheaper_of_train_and_car():
+    d = ground_dest(ground(parking=30))
+    solo = price_package(d, TripRequest(Money.of(5000), 1, nights=3), 3, "2027-01", TODAY)
+    # train: 50 x 2 ways x 1.2 = 120; car: 0.14 x 400 km + 30 x 3 nights = 146
+    assert solo.fare.mode == "train" and solo.components[0].name == "ground"
+    assert solo.components[0].total.expected.amount == Decimal("120")
+    group = price_package(d, TripRequest(Money.of(5000), 4, nights=3), 3, "2027-01", TODAY)
+    assert group.fare.mode == "car"  # one car for four beats four train tickets
+    assert group.components[0].confidence == "estimated"
+
+
+def test_ground_beats_an_expensive_flight_and_flight_wins_when_cheaper():
+    cheap_ground = ground_dest(ground(), fares=[fare(400, depart=date(2027, 1, 8), nights=3, dest="YOW")])
+    p = price_package(cheap_ground, TripRequest(Money.of(5000), 2, nights=3), 3, "2027-01", TODAY)
+    assert p.fare.mode == "car"  # $116 by car against $880 in flights for two
+    pricey_ground = ground_dest(ground(fare_=900, km=0), fares=[fare(100, depart=date(2027, 1, 8), nights=3, dest="YOW")])
+    p = price_package(pricey_ground, TripRequest(Money.of(5000), 2, nights=3), 3, "2027-01", TODAY)
+    assert p.fare.mode == "flight"
+
+
+def test_ground_offers_weekends_when_nothing_longer_fits():
+    d = ground_dest(ground())
+    # one adult, mid tier, $900: three nights cost about $1,040, a weekend about $780
+    p = best_package(d, TripRequest(Money.of(900), 1), TODAY)
+    assert p is not None and p.fit == "within" and p.nights == 2
+    assert p.fare.depart.weekday() == 4  # Friday
+
+
+def test_no_ground_option_leaves_flight_only_places_unchanged():
+    d = dest([fare(500, nights=2)])
+    assert best_package(d, TripRequest(Money.of(9000), 2), TODAY) is None  # flights never price 2-night trips alone

@@ -15,9 +15,16 @@ from pathlib import Path
 
 from .config import Settings
 from .engine import (
+    CAR_COST_PER_KM,
+    CAR_RANGE,
+    CAR_SEATS,
     CHILD_DAILY_SHARE,
+    CHILD_FARE_SHARE,
     DAILY_BASE_CAD,
     FLIGHT_LIFT,
+    GROUND_LEAD_DAYS,
+    GROUND_NIGHTS,
+    PUBLIC_RANGE,
     FLIGHT_LOW_FACTOR,
     MIN_NIGHTS,
     NIGHTLY_BASE_CAD,
@@ -86,6 +93,19 @@ def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = N
                     }
                     for f in sorted(d.fares, key=lambda f: (f.depart, f.price.amount))
                 ],
+                # Getting there without flying (data/seed/ground.csv); the engine takes the cheaper of this and flying.
+                "ground": None if d.ground is None else {
+                    "mode": d.ground.mode,
+                    "fare": float(d.ground.fare.amount) if d.ground.fare else None,
+                    "hours": d.ground.hours,
+                    "km": d.ground.km,
+                    "driveHours": d.ground.drive_hours,
+                    "carExtra": float(d.ground.car_extra.amount) if d.ground.car_extra else 0,
+                    "carPerPerson": float(d.ground.car_per_person.amount) if d.ground.car_per_person else 0,
+                    "parking": float(d.ground.parking.amount) if d.ground.parking else 0,
+                    "link": d.ground.link,
+                    "partner": d.ground.partner,
+                },
                 "bands": [
                     {
                         "month": m,
@@ -118,6 +138,15 @@ def build_snapshot(conn: sqlite3.Connection, s: Settings, today: date | None = N
             "minNights": MIN_NIGHTS,
             "flightLow": float(FLIGHT_LOW_FACTOR),
             "flightLift": {"exact": [float(x) for x in FLIGHT_LIFT[True]], "nearby": [float(x) for x in FLIGHT_LIFT[False]]},
+            "ground": {
+                "nights": [GROUND_NIGHTS.start, GROUND_NIGHTS.stop + 1],  # longest, shortest
+                "leadDays": GROUND_LEAD_DAYS,
+                "carPerKm": float(CAR_COST_PER_KM),
+                "carSeats": CAR_SEATS,
+                "childFareShare": float(CHILD_FARE_SHARE),
+                "publicRange": [float(x) for x in PUBLIC_RANGE],
+                "carRange": [float(x) for x in CAR_RANGE],
+            },
         },
         "destinations": out_dests,
         "advisories": advisories,

@@ -1,0 +1,13 @@
+origin,code,name,mode,fare,hours,km,drive_hours,car_extra,car_per_person,parking,link,partner
+YTO,YMQ,Montreal,train,65,5,540,5.5,,,25,https://www.viarail.ca/en,VIA Rail
+YTO,YOW,Ottawa,train,55,4.5,450,4.5,,,20,https://www.viarail.ca/en,VIA Rail
+YTO,YGK,Kingston,train,45,2.5,260,2.75,,,10,https://www.viarail.ca/en,VIA Rail
+YTO,XLV,Niagara Falls,train,22,2,130,1.5,,,15,https://www.gotransit.com/en,GO Transit
+YTO,YQB,Quebec City,train,100,9,800,8,,,20,https://www.viarail.ca/en,VIA Rail
+YMQ,YTO,Toronto,train,65,5,540,5.5,,,30,https://www.viarail.ca/en,VIA Rail
+YMQ,YOW,Ottawa,train,40,2,200,2,,,20,https://www.viarail.ca/en,VIA Rail
+YMQ,YQB,Quebec City,train,45,3.25,255,2.75,,,20,https://www.viarail.ca/en,VIA Rail
+YMQ,YTM,Mont-Tremblant,,,,130,1.75,,,0,,
+YVR,YYJ,Victoria,bus,65,4,70,3.5,75,20,20,https://bcfconnector.com/,BC Ferries Connector
+YVR,YWS,Whistler,bus,35,2.5,125,2,,,20,,
+YVR,SEA,Seattle,train,55,4,230,3,,,35,https://www.amtrak.com/,Amtrak

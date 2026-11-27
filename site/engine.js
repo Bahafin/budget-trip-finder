@@ -136,28 +136,90 @@ function dailyComponent(dest, req, nights, C) {
   };
 }
 
-export function pricePackage(dest, req, nights, month, today, C) {
-  const tol = C.nightsTolerance;
-  const flight = flightComponent(dest, req, nights, month, today, C);
-  if (!flight) return null;
-  if (Math.abs(flight.fare.nights - nights) <= tol) nights = flight.fare.nights;
-  const components = [flight.comp, lodgingComponent(dest, req, nights, month, today, C, flight.fare.season ?? 1), dailyComponent(dest, req, nights, C)];
+// Trips without a flight (see engine.py: ground_depart, ground_months, ground_component).
+function groundDepart(month, today, C) {
+  const lead = addDays(today, C.ground.leadDays);
+  const first = `${month}-01`;
+  const start = first > lead ? first : lead;
+  const d = addDays(start, (5 - parseDate(start).getUTCDay() + 7) % 7); // next Friday
+  return d.slice(0, 7) === month ? d : null;
+}
+
+function groundMonths(dest, today) {
+  const first = today.slice(0, 7);
+  const months = [...new Set(dest.bands.map((b) => b.month))].filter((m) => m >= first).sort();
+  if (months.length) return months;
+  const y = Number(today.slice(0, 4)), m = Number(today.slice(5, 7));
+  return Array.from({ length: 6 }, (_, i) => `${y + Math.floor((m - 1 + i) / 12)}-${String(((m - 1 + i) % 12) + 1).padStart(2, "0")}`);
+}
+
+function groundComponent(g, req, nights, depart, C) {
+  const G = C.ground;
+  const travellers = req.adults + req.children;
+  const options = [];
+  if (g.mode && g.fare != null) {
+    const base = g.fare * (req.adults + req.children * G.childFareShare) * 2;
+    const [lo, ex, hi] = G.publicRange;
+    options.push({ mode: g.mode, low: base * lo, expected: base * ex, high: base * hi,
+      detail: `${g.mode} from $${Math.round(g.fare)} one way per adult (typical advance fare, about ${g.hours}h), round trip` });
+  }
+  if (g.km > 0) {
+    const cars = Math.ceil(travellers / G.carSeats);
+    const perCar = G.carPerKm * g.km * 2 + (g.carExtra || 0) * 2 + (g.parking || 0) * nights;
+    const base = perCar * cars + (g.carPerPerson || 0) * travellers * 2;
+    const [lo, ex, hi] = G.carRange;
+    options.push({ mode: "car", low: base * lo, expected: base * ex, high: base * hi,
+      detail: `driving ${g.km * 2} km round trip (about ${g.driveHours}h each way): fuel${g.carExtra ? ", ferry" : ""} and parking, ${cars} car(s)` });
+  }
+  if (!options.length) return null;
+  const best = options.reduce((a, b) => (b.expected < a.expected || (b.expected === a.expected && b.mode < a.mode) ? b : a));
+  const fare = { depart, ret: addDays(depart, nights), nights, month: depart.slice(0, 7), price: 0, foundOn: depart,
+    airline: "", transfers: null, link: "", season: 1, mode: best.mode };
+  return { comp: { name: "ground", low: best.low, expected: best.expected, high: best.high, confidence: "estimated", detail: best.detail }, fare };
+}
+
+function makePackage(dest, req, nights, month, today, C, transport) {
+  const components = [transport.comp, lodgingComponent(dest, req, nights, month, today, C, transport.fare.season ?? 1), dailyComponent(dest, req, nights, C)];
   const total = components.reduce((acc, c) => add(acc, c), { low: 0, expected: 0, high: 0 });
   const fit = total.expected <= req.budget ? "within" : total.low <= req.budget ? "stretch" : "over";
-  return { dest, nights, month, fare: flight.fare, components, total, fit };
+  return { dest, nights, month, fare: transport.fare, components, total, fit };
+}
+
+// The trip priced by plane and, for places in reach, by ground; the cheaper one.
+export function pricePackage(dest, req, nights, month, today, C) {
+  const tol = C.nightsTolerance;
+  const options = [];
+  if (req.nights != null || nights >= (C.minNights ?? NIGHTS_MIN)) {
+    const flight = flightComponent(dest, req, nights, month, today, C);
+    if (flight) {
+      const n = Math.abs(flight.fare.nights - nights) <= tol ? flight.fare.nights : nights;
+      options.push(makePackage(dest, req, n, month, today, C, flight));
+    }
+  }
+  const depart = dest.ground ? groundDepart(month, today, C) : null;
+  if (depart) {
+    const ground = groundComponent(dest.ground, req, nights, depart, C);
+    if (ground) options.push(makePackage(dest, req, nights, month, today, C, ground));
+  }
+  if (!options.length) return null;
+  return options.reduce((a, b) => (b.total.expected < a.total.expected ? b : a));
 }
 
 const FIT_ORDER = { within: 0, stretch: 1, over: 2 };
 
 export function bestPackage(dest, req, today, C) {
-  const months = req.month ? [req.month] : [...new Set(dest.fares.map((f) => f.month))].sort();
+  const found = new Set(dest.fares.map((f) => f.month));
+  if (dest.ground) for (const m of groundMonths(dest, today)) found.add(m);
+  const months = req.month ? [req.month] : [...found].sort();
   const candidates = [];
   for (const month of months) {
     let pkg = null;
     if (req.nights != null) {
       pkg = pricePackage(dest, req, req.nights, month, today, C);
     } else {
-      const lengths = [...new Set(dest.fares.filter((f) => f.month === month && f.nights >= NIGHTS_MIN && f.nights <= NIGHTS_MAX).map((f) => f.nights))].sort((a, b) => b - a);
+      const found = new Set(dest.fares.filter((f) => f.month === month && f.nights >= NIGHTS_MIN && f.nights <= NIGHTS_MAX).map((f) => f.nights));
+      if (dest.ground) for (let n = C.ground.nights[0]; n >= C.ground.nights[1]; n--) found.add(n);
+      const lengths = [...found].sort((a, b) => b - a);
       for (const n of lengths) {
         const p = pricePackage(dest, req, n, month, today, C);
         if (!p) break;

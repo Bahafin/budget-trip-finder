@@ -10,10 +10,11 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from .config import Settings
+from .config import ROOT, Settings
 from .engine import (
     DestinationData,
     Fare,
+    Ground,
     LodgingBand,
     Package,
     TripRequest,
@@ -26,9 +27,32 @@ from .links import flight_link, hotel_link
 from .money import Money, PriceRange
 
 
-def load_destinations(conn: sqlite3.Connection, today: date | None = None, origin: str = "YTO") -> list[DestinationData]:
-    """Destinations shown from one departure city, with that city's fares (hotels and prices are shared)."""
+GROUND_CSV = ROOT / "data" / "seed" / "ground.csv"
+
+
+def load_ground(path: Path = GROUND_CSV) -> dict[str, dict[str, tuple[str, Ground]]]:
+    """data/seed/ground.csv: origin -> code -> (display name, how to get there without flying)."""
+    out: dict[str, dict[str, tuple[str, Ground]]] = defaultdict(dict)
+    if not path.exists():
+        return out
+    money = lambda v: Money.of(v) if (v or "").strip() else None  # noqa: E731
+    with path.open(encoding="utf8") as f:
+        for r in csv.DictReader(f):
+            out[r["origin"]][r["code"]] = (r["name"], Ground(
+                mode=r["mode"].strip(), fare=money(r["fare"]), hours=float(r["hours"] or 0), km=int(r["km"] or 0),
+                drive_hours=float(r["drive_hours"] or 0), car_extra=money(r["car_extra"]),
+                car_per_person=money(r["car_per_person"]), parking=money(r["parking"]),
+                link=r["link"].strip(), partner=r["partner"].strip(),
+            ))
+    return out
+
+
+def load_destinations(conn: sqlite3.Connection, today: date | None = None, origin: str = "YTO",
+                      ground_csv: Path = GROUND_CSV) -> list[DestinationData]:
+    """Destinations shown from one departure city, with that city's fares (hotels and prices are shared) and,
+    for places in reach, how to get there by train, bus or car."""
     today = today or date.today()
+    ground = load_ground(ground_csv).get(origin, {})
     levels = {r["country_code"]: Decimal(str(r["ratio_to_usd"])) for r in conn.execute("SELECT * FROM price_levels")}
     canada = levels.get("CA")
     # Seasonality: the city's daily hotel price index, and which nights each month's hotel sample used.
@@ -74,7 +98,8 @@ def load_destinations(conn: sqlite3.Connection, today: date | None = None, origi
             continue
         lvl = levels.get(r["country_code"])
         rel = (lvl / canada).quantize(Decimal("0.01")) if lvl and canada else None
-        out.append(DestinationData(r["code"], r["name"], r["country_code"], fares[r["code"]], bands[r["code"]], rel))
+        name, g = ground.get(r["code"], (r["name"], None))
+        out.append(DestinationData(r["code"], name, r["country_code"], fares[r["code"]], bands[r["code"]], rel, g))
     return out
 
 

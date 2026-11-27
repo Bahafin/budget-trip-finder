@@ -55,3 +55,14 @@ YVR,ATH,Athens,GR
 YVR,AKL,Auckland,NZ
 YVR,YTO,Toronto,CA
 YVR,YMQ,Montreal,CA
+YTO,YOW,Ottawa,CA
+YTO,YGK,Kingston,CA
+YTO,XLV,Niagara Falls,CA
+YTO,YQB,Quebec City,CA
+YMQ,YTO,Toronto,CA
+YMQ,YOW,Ottawa,CA
+YMQ,YQB,Quebec City,CA
+YMQ,YTM,Mont-Tremblant,CA
+YVR,YYJ,Victoria,CA
+YVR,YWS,Whistler,CA
+YVR,SEA,Seattle,US

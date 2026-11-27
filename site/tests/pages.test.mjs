@@ -18,7 +18,8 @@ test(`pages manifest matches the browser engine (${slug})`, { skip: !existsSync(
   const manifest = JSON.parse(readFileSync(manifestUrl, "utf8"));
   const C = snapshot.constants;
   const today = manifest.today;
-  const dests = new Map(prepare(snapshot, today).map((d) => [d.code, d]));
+  // Destination pages price flight trips only (ground trips are finder-only for now), so ground options are left out.
+  const dests = new Map(prepare(snapshot, today).map((d) => [d.code, { ...d, ground: null }]));
   assert.ok(manifest.calls.length > 0, "no priced calls in the manifest");
   for (const call of manifest.calls) {
     let dest = dests.get(call.code);

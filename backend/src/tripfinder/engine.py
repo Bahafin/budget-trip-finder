@@ -31,6 +31,16 @@ NIGHTS_TOLERANCE = 2  # a cached fare counts as "this length" if within +/- 2 ni
 FLIGHT_LOW_FACTOR = Decimal("0.95")
 FLIGHT_LIFT = {True: (Decimal("1.10"), Decimal("1.35")), False: (Decimal("1.20"), Decimal("1.60"))}
 
+# Trips without a flight (train, bus or car to nearby places; research #7). Rough, hand-entered inputs from
+# data/seed/ground.csv, so the transport line is always labelled "estimated" until there is a fare feed.
+GROUND_NIGHTS = range(7, 1, -1)  # without a requested length: a week down to a weekend (2 nights)
+GROUND_LEAD_DAYS = 7  # earliest departure: a week from today, on a Friday
+CAR_COST_PER_KM = Decimal("0.14")  # fuel only: about 8.5 L/100 km at about $1.60/L
+CAR_SEATS = 5
+CHILD_FARE_SHARE = Decimal("0.5")  # rail and bus child fares are roughly half
+PUBLIC_RANGE = (Decimal("0.8"), Decimal("1.2"), Decimal("1.8"))  # around a typical advance one-way fare
+CAR_RANGE = (Decimal("0.85"), Decimal("1"), Decimal("1.3"))
+
 
 @dataclass(frozen=True)
 class TripRequest:
@@ -71,6 +81,7 @@ class Fare:
     link: str = ""
     # Hotel price for these dates relative to the dates our hotel sample used (city price index); 1 = no data.
     season: Decimal = Decimal(1)
+    mode: str = "flight"  # flight | train | bus | ferry | car (ground trips carry no fare price)
 
     @property
     def nights(self) -> int:
@@ -91,6 +102,22 @@ class LodgingBand:
     source: str = "liteapi"
 
 
+@dataclass(frozen=True)
+class Ground:
+    """Getting there without flying, one way: a public option (mode + fare per adult), a car option (km > 0), or both."""
+
+    mode: str = ""  # train | bus | ferry; "" = no public option
+    fare: Money | None = None  # typical advance one-way fare per adult
+    hours: float = 0
+    km: int = 0  # driving distance one way; 0 = no car option
+    drive_hours: float = 0
+    car_extra: Money | None = None  # per car, one way: ferry vehicle fare, tolls
+    car_per_person: Money | None = None  # per person, one way, when driving: ferry passenger fare
+    parking: Money | None = None  # per car per night
+    link: str = ""  # where to check the public option (not an affiliate link)
+    partner: str = ""
+
+
 @dataclass
 class DestinationData:
     code: str
@@ -99,6 +126,7 @@ class DestinationData:
     fares: list[Fare]
     bands: dict[tuple[str, str], LodgingBand] = field(default_factory=dict)  # (month, tier) -> band
     price_level: Decimal | None = None  # destination price level / Canada price level
+    ground: Ground | None = None  # set when the place can be reached without flying
 
 
 @dataclass(frozen=True)
@@ -225,14 +253,69 @@ def daily_component(dest: DestinationData, req: TripRequest, nights: int) -> Com
     return Component("daily", rng, "estimated", f"{per_adult_day} per adult per day, {days} days ({src})")
 
 
+def ground_depart(month: str, today: date) -> date | None:
+    """The first Friday on or after the later of the month's first day and a week from today; None if that
+    falls outside the month."""
+    start = max(date.fromisoformat(f"{month}-01"), today + timedelta(days=GROUND_LEAD_DAYS))
+    d = start + timedelta(days=(4 - start.weekday()) % 7)
+    return d if d.strftime("%Y-%m") == month else None
+
+
+def ground_months(dest: DestinationData, today: date) -> list[str]:
+    """Months a ground trip can be priced in: those with a hotel sample, else the next six."""
+    first = today.strftime("%Y-%m")
+    months = sorted({m for (m, _) in dest.bands if m >= first})
+    if months:
+        return months
+    y, m = today.year, today.month
+    return [f"{y + (m - 1 + i) // 12}-{(m - 1 + i) % 12 + 1:02d}" for i in range(6)]
+
+
+def ground_component(g: Ground, req: TripRequest, nights: int, depart: date) -> tuple[Component, Fare] | None:
+    """The cheaper of the public option and driving, round trip, for the whole group."""
+    options: list[tuple[str, PriceRange, str]] = []
+    if g.mode and g.fare is not None:
+        riders = Decimal(req.adults) + Decimal(req.children) * CHILD_FARE_SHARE
+        base = g.fare * (riders * 2)
+        lo, ex, hi = PUBLIC_RANGE
+        options.append((g.mode, PriceRange(base * lo, base * ex, base * hi),
+                        f"{g.mode} from {g.fare} one way per adult (typical advance fare, about {g.hours:g}h), round trip"))
+    if g.km > 0:
+        cars = math.ceil(req.travellers / CAR_SEATS)
+        zero = Money.of(0)
+        per_car = CAR_COST_PER_KM * (g.km * 2) + (g.car_extra or zero).amount * 2 + (g.parking or zero).amount * nights
+        base = Money.of(per_car * cars) + (g.car_per_person or zero) * (req.travellers * 2)
+        lo, ex, hi = CAR_RANGE
+        ferry = ", ferry" if g.car_extra else ""
+        options.append(("car", PriceRange(base * lo, base * ex, base * hi),
+                        f"driving {g.km * 2} km round trip (about {g.drive_hours:g}h each way): fuel{ferry} and parking, {cars} car(s)"))
+    if not options:
+        return None
+    mode, rng, detail = min(options, key=lambda o: (o[1].expected.amount, o[0]))
+    fare = Fare("", depart, depart + timedelta(days=nights), Money.of(0), depart, mode=mode)
+    return Component("ground", rng, "estimated", detail), fare
+
+
 def price_package(dest: DestinationData, req: TripRequest, nights: int, month: str, today: date) -> Package | None:
-    flight = flight_component(dest.fares, req, nights, month, today)
-    if flight is None:
-        return None  # no flight data means the trip can't be priced
-    flights, fare = flight
-    if abs(fare.nights - nights) <= NIGHTS_TOLERANCE:
-        nights = fare.nights  # price the stay the fare actually allows
-    comps = [flights, lodging_component(dest, req, nights, month, today, fare.season), daily_component(dest, req, nights)]
+    """The trip priced by plane and, for places in reach, by ground; the cheaper one."""
+    options = []
+    if req.nights is not None or nights >= MIN_NIGHTS:  # flights never price weekend lengths on their own
+        flight = flight_component(dest.fares, req, nights, month, today)
+        if flight is not None:
+            flights, fare = flight
+            n = fare.nights if abs(fare.nights - nights) <= NIGHTS_TOLERANCE else nights  # the stay the fare allows
+            options.append(_package(dest, req, n, month, today, flights, fare))
+    if dest.ground is not None and (depart := ground_depart(month, today)) is not None:
+        ground = ground_component(dest.ground, req, nights, depart)
+        if ground is not None:
+            options.append(_package(dest, req, nights, month, today, *ground))
+    if not options:
+        return None  # no way to get there priced
+    return min(options, key=lambda p: p.total.expected.amount)
+
+
+def _package(dest: DestinationData, req: TripRequest, nights: int, month: str, today: date, transport: Component, fare: Fare) -> Package:
+    comps = [transport, lodging_component(dest, req, nights, month, today, fare.season), daily_component(dest, req, nights)]
     total = PriceRange.zero(req.budget.currency)
     for c in comps:
         total = total + c.total
@@ -247,14 +330,20 @@ def price_package(dest: DestinationData, req: TripRequest, nights: int, month: s
 
 def best_package(dest: DestinationData, req: TripRequest, today: date) -> Package | None:
     """Cheapest month (or the requested one) and, without a fixed length, the longest trip that fits."""
-    months = [req.month] if req.month else sorted({f.month for f in dest.fares})
+    found = {f.month for f in dest.fares}
+    if dest.ground is not None:
+        found |= set(ground_months(dest, today))
+    months = [req.month] if req.month else sorted(found)
     candidates: list[Package] = []
     for month in months:
         if req.nights is not None:
             pkg = price_package(dest, req, req.nights, month, today)
         else:
             # Only lengths a cached fare actually offers, longest first; stop at the first that fits.
-            lengths = sorted({f.nights for f in dest.fares if f.month == month and f.nights in NIGHTS_SEARCH}, reverse=True)
+            found_lengths = {f.nights for f in dest.fares if f.month == month and f.nights in NIGHTS_SEARCH}
+            if dest.ground is not None:
+                found_lengths |= set(GROUND_NIGHTS)
+            lengths = sorted(found_lengths, reverse=True)
             pkg = None
             for n in lengths:
                 p = price_package(dest, req, n, month, today)

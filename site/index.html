@@ -277,7 +277,7 @@ const status = document.getElementById("status");
 const budgetIn = document.getElementById("budget");
 const fmt = (n) => Math.round(n).toLocaleString("en-CA");
 const money = (n) => `$${fmt(n)}`;
-const colors = { flights: "var(--flights)", lodging: "var(--lodging)", daily: "var(--daily)" };
+const colors = { flights: "var(--flights)", ground: "var(--flights)", lodging: "var(--lodging)", daily: "var(--daily)" };
 const today = new Date().toISOString().slice(0, 10);
 const regionName = new Intl.DisplayNames(["en-CA"], { type: "region" });
 const country = (cc) => { try { return regionName.of(cc); } catch { return cc; } };
@@ -313,11 +313,16 @@ function confText(c) {
 }
 
 const stops = (n) => (n == null ? null : n === 0 ? "direct" : `${n} stop${n > 1 ? "s" : ""}`);
+// Trips without a flight: the fare carries the cheaper way there (train, bus, ferry or car).
+const isGround = (fare) => fare.mode && fare.mode !== "flight";
+const BY = { train: "by train", bus: "by bus", ferry: "by ferry", car: "by car" };
+const hoursText = (h) => (h ? `, about ${h < 1.5 ? "an hour" : `${Math.round(h * 2) / 2} hours`}` : "");
 
 const LABELS = {
   flights: (p, req, t) => ["Flights", `round trip for ${t}${p.fare.airline ? ` on ${p.fare.airline}` : ""}${stops(p.fare.transfers) ? `, ${stops(p.fare.transfers)}` : ""}`],
   lodging: (p, req) => ["Hotel", `${p.nights} nights, ${roomsNeeded(req.adults, req.children)} room${roomsNeeded(req.adults, req.children) > 1 ? "s" : ""}`],
   daily: (p) => ["Daily spending", `food, local transport, extras for ${p.nights + 1} days`],
+  ground: (p, req, t) => ["Getting there", p.fare.mode === "car" ? "by car, round trip: fuel and parking" : `${BY[p.fare.mode] ?? p.fare.mode}, round trip for ${t}`],
 };
 
 function meter(p, budget) {
@@ -359,7 +364,8 @@ function card(p, req, data) {
 
   const b = el("div", { class: "body" });
   // Route line: where from and how (stops are known only for exact cached fares)
-  const via = stops(p.fare.transfers);
+  const g = isGround(p.fare) ? p.dest.ground : null;
+  const via = g ? `${BY[p.fare.mode] ?? p.fare.mode}${hoursText(p.fare.mode === "car" ? g.driveHours : g.hours)}` : stops(p.fare.transfers);
   b.append(el("p", { class: "route" }, `${originName} → ${p.dest.name}`, via ? el("span", {}, `, ${via}`) : null));
   b.append(el("div", { class: "when" },
     el("span", { class: "pill" }, `${p.nights} nights`),
@@ -373,7 +379,7 @@ function card(p, req, data) {
       el("div", { class: "lbl" }, `likely ${money(p.total.low)} – ${money(p.total.high)}`)),
     el("div", { class: "pp" }, el("b", {}, money(p.total.expected / travellers)), el("div", { class: "lbl" }, "per person")),
   ));
-  const hub = pageIndex[p.dest.code];
+  const hub = g ? null : pageIndex[p.dest.code]; // destination pages price flight trips only, for now
   if (hub) b.append(el("p", { class: "breakdown" }, el("a", { href: hub }, `See the full cost breakdown for ${p.dest.name}`)));
   const diff = req.budget - p.total.expected;
   b.append(el("div", { class: `left ${p.fit}` }, p.fit === "within"
@@ -418,10 +424,11 @@ function card(p, req, data) {
   // Outbound partner links (we refer, we don't sell)
   const ctas = el("div", { class: "ctas" });
   const hotel = hotelLinkFor(p.dest, p.fare, req);
-  const flightUrl = flightLinkFor(p.dest, p.fare, req);
+  const flightUrl = g ? "" : flightLinkFor(p.dest, p.fare, req);
   const newTab = () => el("span", { class: "sr-only" }, " (opens in a new tab)");
   if (flightUrl) ctas.append(el("a", { class: "btn primary", href: flightUrl, target: "_blank", rel: "noopener sponsored" }, p.fare.link ? "See flights on Aviasales" : "Search these dates on Aviasales", newTab()));
-  if (hotel) ctas.append(el("a", { class: `btn ${flightUrl ? "secondary" : "primary"}`, href: hotel.url, target: "_blank", rel: "noopener sponsored" }, `See hotels on ${hotel.partner}`, newTab()));
+  if (g && p.fare.mode !== "car" && g.link) ctas.append(el("a", { class: "btn primary", href: g.link, target: "_blank", rel: "noopener" }, `Check fares on ${g.partner || "the operator's site"}`, newTab()));
+  if (hotel) ctas.append(el("a", { class: `btn ${ctas.childElementCount ? "secondary" : "primary"}`, href: hotel.url, target: "_blank", rel: "noopener sponsored" }, `See hotels on ${hotel.partner}`, newTab()));
   if (ctas.childElementCount < 2) ctas.style.gridTemplateColumns = "1fr";
   b.append(ctas, el("p", { class: "fine" }, "Prices are estimates. Both buttons open the partner's site in a new tab, where you check the live price and book. They may be affiliate links."));
 
@@ -512,10 +519,10 @@ function sizeBudget() {
 // The cheapest trip a place offers with these settings: every month allowed and every cached trip length
 // (3-14 nights) unless the person fixed the length.
 function cheapestPackage(d, req) {
-  const months = req.month ? [req.month] : [...new Set(d.fares.map((x) => x.month))];
+  const months = req.month ? [req.month] : [...new Set([...d.fares.map((x) => x.month), ...(d.ground ? d.bands.map((b) => b.month).filter((m) => m >= today.slice(0, 7)) : [])])];
   let best = null;
   for (const m of months) {
-    const lengths = req.nights ? [req.nights] : [...new Set(d.fares.filter((x) => x.month === m && x.nights >= 3 && x.nights <= 14).map((x) => x.nights))];
+    const lengths = req.nights ? [req.nights] : [...new Set([...d.fares.filter((x) => x.month === m && x.nights >= 3 && x.nights <= 14).map((x) => x.nights), ...(d.ground ? [2, 3] : [])])];
     for (const n of lengths) {
       const p = pricePackage(d, req, n, m, today, data.constants);
       if (p && (!best || p.total.expected < best.total.expected)) best = p;
