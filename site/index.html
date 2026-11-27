@@ -192,6 +192,7 @@
   .btn.secondary { border: 2px solid var(--brand); color: var(--brand); }
   .btn.secondary:hover { background: var(--surface-2); }
   .fine { font-size: 12px; color: var(--muted); margin: -4px 0 0; }
+  .fine.feedback { margin-top: 2px; }
 
   .empty { grid-column: 1 / -1; background: var(--surface); border-radius: 14px; padding: 28px; text-align: center; border: 1px solid var(--line); }
 
@@ -340,6 +341,25 @@ function meter(p, budget) {
   return m;
 }
 
+// Tester feedback (PLAN 1.4): an email to us with the trip filled in. Swap FEEDBACK_TO for a form URL later.
+const FEEDBACK_TO = "hello@farenoughtrips.com";
+function feedbackLink(p, req, who) {
+  const tier = { budget: "budget (up to 3★)", mid: "mid-range (4★)", upscale: "upscale (5★)" }[req.tier] ?? req.tier;
+  const subject = `Price check: ${originName} to ${p.dest.name}, ${p.fare.depart}`;
+  const body = [
+    `Trip: ${originName} to ${p.dest.name} (${p.dest.code}), ${p.fare.depart} to ${p.fare.ret}, ${p.nights} nights`,
+    `Group: ${who}, ${tier} hotel`,
+    `We showed: about ${money(p.total.expected)} (likely ${money(p.total.low)} to ${money(p.total.high)})`,
+    ...p.components.map((c) => `  ${{ flights: "Flights", ground: "Getting there", lodging: "Hotel", daily: "Day-to-day" }[c.name] ?? c.name}: about ${money(c.expected)}`),
+    `Data from: ${today}`,
+    "",
+    "What I found (price, site, date checked):",
+    "",
+    "Anything else:",
+  ].join("\n");
+  return `mailto:${FEEDBACK_TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
 function card(p, req, data) {
   const travellers = req.adults + req.children;
   const who = [`${req.adults} adult${req.adults > 1 ? "s" : ""}`, req.children ? `${req.children} child${req.children > 1 ? "ren" : ""}` : null].filter(Boolean).join(", ");
@@ -430,7 +450,8 @@ function card(p, req, data) {
   if (g && p.fare.mode !== "car" && g.link) ctas.append(el("a", { class: "btn primary", href: g.link, target: "_blank", rel: "noopener" }, `Check fares on ${g.partner || "the operator's site"}`, newTab()));
   if (hotel) ctas.append(el("a", { class: `btn ${ctas.childElementCount ? "secondary" : "primary"}`, href: hotel.url, target: "_blank", rel: "noopener sponsored" }, `See hotels on ${hotel.partner}`, newTab()));
   if (ctas.childElementCount < 2) ctas.style.gridTemplateColumns = "1fr";
-  b.append(ctas, el("p", { class: "fine" }, "Prices are estimates. Both buttons open the partner's site in a new tab, where you check the live price and book. They may be affiliate links."));
+  b.append(ctas, el("p", { class: "fine" }, "Prices are estimates. The buttons open the partner's site in a new tab, where you check the live price and book. They may be affiliate links."));
+  b.append(el("p", { class: "fine feedback" }, el("a", { href: feedbackLink(p, req, who) }, "Was this price right? Tell us what you found")));
 
   c.append(b);
   return c;

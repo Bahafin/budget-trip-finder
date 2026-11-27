@@ -11,7 +11,7 @@ on:
     - cron: "17 9 * * *" # 09:17 UTC = 04:17 Toronto (EST)
   push:
     branches: [main]
-    paths: ["site/**", "backend/**", "data/seed/**", "functions/**", ".github/workflows/pages.yml"]
+    paths: ["site/**", "backend/**", "data/seed/**", "functions/**", "deploy/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
     inputs:
       force:
@@ -124,11 +124,26 @@ jobs:
           include-hidden-files: true
           retention-days: 3
 
+      - name: Old address redirects once farenoughtrips.com serves the site
+        id: ghpages
+        run: |
+          # Switches itself: while the new domain isn't serving our site, GitHub Pages keeps the full copy.
+          if curl -sfL --max-time 20 https://farenoughtrips.com/ | grep -q "<title>Far Enough"; then
+            mkdir -p ghpages
+            cp deploy/github-pages-redirect.html ghpages/index.html
+            cp deploy/github-pages-redirect.html ghpages/404.html
+            echo "dir=ghpages" >> "$GITHUB_OUTPUT"
+            echo "GitHub Pages: redirect to farenoughtrips.com" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "dir=site" >> "$GITHUB_OUTPUT"
+            echo "GitHub Pages: full site (farenoughtrips.com not serving yet)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - uses: actions/configure-pages@v6
 
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: site
+          path: ${{ steps.ghpages.outputs.dir }}
 
   deploy:
     needs: build
@@ -151,12 +166,14 @@ jobs:
       CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       PROJECT: farenough
     steps:
-      - uses: actions/checkout@v7 # for functions/ (the www redirect)
+      - uses: actions/checkout@v7 # only functions/ (the www redirect); the site comes from the build job
+        with:
+          sparse-checkout: functions
 
       - uses: actions/download-artifact@v4
         with:
           name: site
-          path: site
+          path: public
 
       - name: Create the Pages project if it doesn't exist
         id: project
@@ -180,7 +197,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy site --project-name=farenough --branch=main --commit-dirty=true
+          command: pages deploy public --project-name=farenough --branch=main --commit-dirty=true
 
       - name: Custom domains
         if: steps.project.outputs.ok == 'true'
