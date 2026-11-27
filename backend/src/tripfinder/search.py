@@ -26,8 +26,16 @@ from .engine import (
 from .links import flight_link, hotel_link
 from .money import Money, PriceRange
 
-
 GROUND_CSV = ROOT / "data" / "seed" / "ground.csv"
+# Day-to-day spending level per place where the country's price level is clearly off for visitors (PLAN 2.3).
+DAILY_LEVEL_CSV = ROOT / "data" / "seed" / "daily_level.csv"
+
+
+def load_daily_levels(path: Path = DAILY_LEVEL_CSV) -> dict[str, Decimal]:
+    if not path.exists():
+        return {}
+    with path.open(encoding="utf8") as f:
+        return {r["code"]: Decimal(r["level"]) for r in csv.DictReader(f)}
 
 
 def load_ground(path: Path = GROUND_CSV) -> dict[str, dict[str, tuple[str, Ground]]]:
@@ -35,7 +43,7 @@ def load_ground(path: Path = GROUND_CSV) -> dict[str, dict[str, tuple[str, Groun
     out: dict[str, dict[str, tuple[str, Ground]]] = defaultdict(dict)
     if not path.exists():
         return out
-    money = lambda v: Money.of(v) if (v or "").strip() else None  # noqa: E731
+    money = lambda v: Money.of(v) if (v or "").strip() else None
     with path.open(encoding="utf8") as f:
         for r in csv.DictReader(f):
             out[r["origin"]][r["code"]] = (r["name"], Ground(
@@ -55,6 +63,7 @@ def load_destinations(conn: sqlite3.Connection, today: date | None = None, origi
     ground = load_ground(ground_csv).get(origin, {})
     levels = {r["country_code"]: Decimal(str(r["ratio_to_usd"])) for r in conn.execute("SELECT * FROM price_levels")}
     canada = levels.get("CA")
+    place_levels = load_daily_levels()
     # Seasonality: the city's daily hotel price index, and which nights each month's hotel sample used.
     index: dict[str, dict[date, float]] = defaultdict(dict)
     for r in conn.execute("SELECT destination, day, usd FROM price_index"):
@@ -98,6 +107,7 @@ def load_destinations(conn: sqlite3.Connection, today: date | None = None, origi
             continue
         lvl = levels.get(r["country_code"])
         rel = (lvl / canada).quantize(Decimal("0.01")) if lvl and canada else None
+        rel = place_levels.get(r["code"], rel)  # a checked per-place level beats the country average
         name, g = ground.get(r["code"], (r["name"], None))
         out.append(DestinationData(r["code"], name, r["country_code"], fares[r["code"]], bands[r["code"]], rel, g))
     return out

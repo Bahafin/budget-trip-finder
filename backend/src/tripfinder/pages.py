@@ -1139,8 +1139,10 @@ class Builder:
             "figure comes from.</p>"),
             ("<h2>Day-to-day spending</h2><p>Food, local transport and modest entry fees. We start from a Canadian daily amount per "
              f"adult ({daily}) and scale it by each country's price level compared with Canada (World Bank International Comparison "
-             f"Program, CC BY 4.0). Children count at {round(CHILD_DAILY_SHARE * 100)}% of an adult. This is the part we can't check against a booking site, so treat "
-             "it as the roughest number.</p>"),
+             f"Program, CC BY 4.0). Children count at {round(CHILD_DAILY_SHARE * 100)}% of an adult. In November 2026 we compared it with what travellers "
+             "report spending on meals and local transport in 17 cities (BudgetYourTrip): most were within about 15%, but a few visitor hot spots "
+             "cost more than their country's average, so Punta Cana, Istanbul, Lisbon, Orlando and New York use their own, higher level. "
+             "This is the part we can't check against a booking site, so treat it as the roughest number.</p>"),
             ("<h2>Fits, stretch and doesn't fit</h2><p>A trip <b>fits</b> when the expected total is within your budget. It's a "
             "<b>stretch</b> when the expected total is over your budget but the low end of the range is under it: it works only if "
             "prices land near the low end. Anything else doesn't fit, and we say what it would take.</p>"),

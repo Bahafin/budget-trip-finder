@@ -1,0 +1,6 @@
+code,level,published_level,source,checked,note
+PUJ,0.58,0.73,BudgetYourTrip mid-range meals + local transport,2026-11-26,resort area; country level 0.43 too low
+IST,0.69,0.88,BudgetYourTrip mid-range meals + local transport,2026-11-26,country level 0.50 too low for central Istanbul
+LIS,0.92,1.12,BudgetYourTrip mid-range meals + local transport,2026-11-26,country level 0.72 too low for Lisbon
+ORL,1.47,1.82,BudgetYourTrip mid-range meals + local transport,2026-11-26,theme-park food and transport; country level 1.11
+NYC,1.25,1.39,BudgetYourTrip mid-range meals + local transport,2026-11-26,country level 1.11
