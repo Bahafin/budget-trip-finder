@@ -31,8 +31,36 @@ PROGRAMS = {
     "kkday": Program(633, 9074),
 }
 
-# Countries where Klook's hotel inventory is the better bet than a plain Booking.com search.
-ASIA = {"JP", "TH", "HK", "ID", "SG", "MY", "VN", "KR", "TW", "PH", "CN", "MO", "KH", "IN", "AE", "QA"}
+# Expedia Group Travel Creator Program (direct, joined 2026-11-26). Format from the owner's Link Builder
+# (unshortened option, 2026-11-26): <base>?landingPage=<page>&camref=<campaign>&creativeref=<creative>&adref=<ref>.
+# camref and creativeref came with the owner's links; adref is the publisher's own reference (like sub_id),
+# so we put ours in it. Expedia: hotels 3.6%; Hotels.com: 1.35-3.6% (PHASE1_SPEC section 14).
+@dataclass(frozen=True)
+class ExpediaBrand:
+    name: str
+    base: str  # affiliate redirect
+    search: str  # hotel search page on the Canadian site
+    camref: str
+    creativeref: str
+    extra: tuple[tuple[str, str], ...] = ()
+
+
+EXPEDIA_GROUP = {
+    "expedia": ExpediaBrand("Expedia", "https://expedia.com/affiliate", "https://www.expedia.ca/Hotel-Search",
+                            "1100l6zQri", "1011l87781", (("siteid", "1"),)),
+    "hotels.com": ExpediaBrand("Hotels.com", "https://www.hotels.com/affiliate", "https://ca.hotels.com/Hotel-Search",
+                               "1100l6zQrn", "1101l67721"),
+}
+HOTEL_BRAND = "expedia"  # the "Check hotels" button; switch to "hotels.com" here if it earns better
+
+# Country names for the search box, so "Kingston" means the right Kingston. Unknown codes search the city alone.
+COUNTRY_NAMES = {
+    "AE": "United Arab Emirates", "CA": "Canada", "CR": "Costa Rica", "DE": "Germany", "DO": "Dominican Republic",
+    "ES": "Spain", "FR": "France", "GB": "United Kingdom", "GR": "Greece", "HK": "Hong Kong", "ID": "Indonesia",
+    "JM": "Jamaica", "JP": "Japan", "KR": "South Korea", "MA": "Morocco", "MX": "Mexico", "NL": "Netherlands",
+    "NZ": "New Zealand", "PA": "Panama", "PF": "French Polynesia", "PT": "Portugal", "TH": "Thailand", "TR": "Turkey",
+    "US": "United States", "VN": "Vietnam", "IT": "Italy", "IE": "Ireland", "IS": "Iceland", "CU": "Cuba",
+}
 
 
 def tracked(s: Settings, program: str, page_url: str, sub_id: str) -> str:
@@ -67,14 +95,30 @@ def flight_search_link(s: Settings, destination: str, origin: str | None = None)
     return tracked(s, "aviasales", page, f"site-{destination}-flight")
 
 
-def hotel_link(s: Settings, city: str, country: str, destination: str, checkin: str, checkout: str, adults: int, children: int, rooms: int) -> dict[str, str]:
-    """Where "Check hotels" goes. Klook (tracked) for Asia; elsewhere a Booking.com search until Expedia's
-    link format is known (TODO.md). Returns the url and the partner name for the button label."""
-    if country in ASIA:
-        page = "https://www.klook.com/en-CA/search/result/?" + urllib.parse.urlencode({"query": f"{city} hotels"})
-        return {"url": tracked(s, "klook", page, f"site-{destination}-hotel"), "partner": "Klook"}
-    q = {"ss": city, "checkin": checkin, "checkout": checkout, "group_adults": adults, "group_children": children, "no_rooms": rooms}
-    return {"url": "https://www.booking.com/searchresults.html?" + urllib.parse.urlencode(q), "partner": "Booking.com"}
+def expedia_group(brand: str, page: str, ref: str) -> str:
+    b = EXPEDIA_GROUP[brand]
+    q = [*b.extra, ("landingPage", page), ("camref", b.camref), ("creativeref", b.creativeref), ("adref", ref)]
+    return b.base + "?" + urllib.parse.urlencode(q)
+
+
+def room_adults(adults: int, rooms: int) -> str:
+    """Expedia takes adults per room, comma-separated: 4 adults in 2 rooms is "2,2" (checked on expedia.ca 2026-11-26)."""
+    rooms = max(1, min(rooms, adults))
+    return ",".join(str(adults // rooms + (1 if i < adults % rooms else 0)) for i in range(rooms))
+
+
+def hotel_link(s: Settings, city: str, country: str, destination: str, checkin: str, checkout: str, adults: int, children: int, rooms: int,
+               brand: str = HOTEL_BRAND) -> dict[str, str]:
+    """Where "Check hotels" goes: a tracked Expedia hotel search for the trip's dates, adults and rooms.
+    Placeholders ({checkin} ...) stay as braces in the search page, so after one round of encoding in
+    landingPage they read %7Bcheckin%7D, which the browser fills. Children aren't passed: Expedia wants each
+    child's age, which we don't ask for. In the exported template (adults "{adults}") the adults-per-room
+    value is the "{roomAdults}" placeholder, which the browser fills with roomAdults(). Returns the url and the partner name for the button label."""
+    b = EXPEDIA_GROUP[brand]
+    where = f"{city}, {COUNTRY_NAMES[country]}" if country in COUNTRY_NAMES and COUNTRY_NAMES[country] != city else city
+    q = {"destination": where, "d1": checkin, "startDate": checkin, "d2": checkout, "endDate": checkout, "adults": room_adults(adults, rooms) if isinstance(adults, int) else "{roomAdults}", "rooms": rooms}
+    page = b.search + "?" + urllib.parse.urlencode(q, safe="{}", quote_via=urllib.parse.quote)
+    return {"url": expedia_group(brand, page, f"site-{destination}-hotel"), "partner": b.name}
 
 
 def check_template(meter: Meter, s: Settings) -> bool:

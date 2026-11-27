@@ -37,9 +37,16 @@ export function hotelLinkFor(dest, fare, req) {
     checkin: fare.depart, checkout: fare.ret, adults: req.adults, children: req.children,
     rooms: roomsNeeded(req.adults, req.children),
   };
+  values.roomAdults = roomAdults(req.adults, values.rooms);
   let url = dest.hotel.url;
   for (const [k, v] of Object.entries(values)) url = url.replaceAll(`{${k}}`, v).replaceAll(`%7B${k}%7D`, v);
   return { url, partner: dest.hotel.partner };
+}
+
+// Expedia takes adults per room, comma-separated ("2,2"); same as room_adults() in links.py.
+export function roomAdults(adults, rooms) {
+  const r = Math.max(1, Math.min(rooms, adults));
+  return Array.from({ length: r }, (_, i) => Math.floor(adults / r) + (i < adults % r ? 1 : 0)).join(",");
 }
 
 export function roomsNeeded(adults, children) {

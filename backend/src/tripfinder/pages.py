@@ -46,6 +46,7 @@ from .engine import (
     rooms_needed,
 )
 from .gate_a import summary as gate_a_summary
+from .links import room_adults
 from .money import Money, PriceRange
 
 # ---- Brand and site settings ------------------------------------------------------------------------------
@@ -284,6 +285,7 @@ def hotel_link(snap: Snapshot, code: str, fare: Fare, adults: int, children: int
         return None
     values = {"checkin": fare.depart.isoformat(), "checkout": fare.ret.isoformat(), "adults": adults, "children": children,
               "rooms": rooms_needed(adults, children)}
+    values["roomAdults"] = room_adults(adults, values["rooms"])
     url = h["url"]
     for k, v in values.items():
         url = url.replace("{" + k + "}", str(v)).replace("%7B" + k + "%7D", str(v))

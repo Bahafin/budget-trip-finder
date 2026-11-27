@@ -48,7 +48,7 @@ What changed is that the proof of concept is done. The next job is to make it go
 | Flights | Aviasales cached fares; estimate = trip's own fare x 1.10 | Validated 2026-11-25 |
 | Hotels | LiteAPI samples into bands, plus the city price index for seasonality | Live data without per-search calls |
 | Daily spend | Canadian baseline x World Bank price level | Weakest number; Gate A checks it |
-| Hotel link | Klook now, Expedia once approved, Booking.com later | Booking.com needs traffic |
+| Hotel link | Expedia (tracked, since 2026-11-26); Hotels.com ready as a switch; Booking.com later | Booking.com needs traffic |
 | Activities | Viator (direct), Klook and KKday for Asia | Viator has no traffic minimum |
 | Hosting | GitHub Pages static site + GitHub Actions refresh | Free; fine until a real backend is needed |
 | LLM | After Gate A | Not needed to pass any gate |
@@ -69,10 +69,10 @@ Goal: testers see fresh, accurate-looking trips, and every click can earn.
   - It restores the database from the Actions cache and runs `refresh auto` (flights when older than 20 h, hotels 6 days, reference data 25 days, destination list 30 days; an empty database rebuilds itself).
   - It then exports the snapshot, runs both test suites, deploys, and writes a refresh and data-cost summary on each run.
   - Without the secrets it deploys the committed snapshot.
-- [x] **1.2 Affiliate links** (done 2026-11-26, except Expedia).
+- [x] **1.2 Affiliate links** (done 2026-11-26; Expedia added the same day).
   - `backend/src/tripfinder/links.py` builds Travelpayouts partner links (project 605382) at export time, tagged per destination (`sub_id` such as `site-CUN-flight`). The export checks the format against the partner links API once per run.
   - Flight links are tracked (verified: the redirect lands on Aviasales with marker and click ID).
-  - "Check hotels" goes to Klook (tracked) for Asian destinations and an untracked Booking.com search elsewhere, until Expedia's link format is known (TODO.md).
+  - "Check hotels" is a tracked Expedia.ca hotel search for every destination (Expedia Group Travel Creator Program: `expedia.com/affiliate?siteid=1&landingPage=<search>&camref&creativeref&adref`; adref carries our tag, `site-CUN-hotel`). It passes the place with its country, the dates and adults per room ("2,2" for two rooms; checked on expedia.ca); children aren't passed because Expedia needs their ages. Hotels.com is set up too (one line in links.py switches the button). Klook stays wired for activities later, no longer for hotels.
   - Airline names and stops come from the Travelpayouts airlines file.
 - [x] **1.3 Accuracy fixes found in validation** (done 2026-11-26):
   - (a) hotel fees LiteAPI marks as paid at the property are now added (same currency only)

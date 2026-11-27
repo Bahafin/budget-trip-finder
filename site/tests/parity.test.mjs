@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { prepare, roomsNeeded, search } from "../engine.js";
+import { prepare, roomAdults, roomsNeeded, search } from "../engine.js";
 
 const here = new URL(".", import.meta.url);
 const snapshot = JSON.parse(readFileSync(new URL("../data.json", here), "utf8"));
@@ -28,4 +28,8 @@ for (const c of golden.cases) {
 test("rooms match the Python rule", () => {
   const cases = [[1, 0, 1], [2, 0, 1], [3, 0, 2], [4, 0, 2], [2, 2, 1], [2, 3, 2], [1, 4, 2], [5, 1, 3]];
   for (const [a, c, r] of cases) assert.equal(roomsNeeded(a, c), r);
+});
+
+test("adults per room match links.py room_adults", () => {
+  assert.deepEqual([roomAdults(2, 1), roomAdults(4, 2), roomAdults(5, 3), roomAdults(1, 2)], ["2", "2,2", "2,2,1", "1"]);
 });
